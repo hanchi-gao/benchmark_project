@@ -1,0 +1,30 @@
+[project]
+name = "amd-vllm-benchmark"
+version = "1.0.0"
+description = "AMD vLLM Benchmark Tool - Unified benchmarking and visualization for vLLM on AMD GPUs"
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.0.0",      # CLI framework
+    "dash>=2.14.0",      # Web UI framework
+    "plotly>=5.18.0",    # Interactive charts
+    "pandas>=2.1.0",     # Data processing
+    "rich>=13.0.0",      # Terminal output formatting
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+amd-bench = "main:cli"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["checks*", "docker*", "benchmarks*", "webui*"]
