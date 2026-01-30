@@ -1,6 +1,6 @@
-# AMD vLLM Benchmark Tool
+# vLLM Benchmark Tool
 
-A unified benchmarking and visualization tool for [vLLM](https://github.com/vllm-project/vllm) on AMD GPUs with ROCm.
+A unified benchmarking and visualization tool for [vLLM](https://github.com/vllm-project/vllm) on GPUs.
 
 ## Features
 

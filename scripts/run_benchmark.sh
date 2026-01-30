@@ -1,5 +1,5 @@
 #!/bin/bash
-# AMD vLLM Benchmark Script
+# vLLM Benchmark Script
 # Customizable GPU configuration benchmark runner
 
 set -e
@@ -157,7 +157,7 @@ mkdir -p "$EXPERIMENT_DIR"
 
 # Display configuration
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║            AMD vLLM Benchmark                              ║${NC}"
+echo -e "${BLUE}║            vLLM Benchmark                                  ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "${GREEN}Configuration:${NC}"

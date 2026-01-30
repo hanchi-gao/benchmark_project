@@ -25,7 +25,7 @@ def create_app(output_dir: str = OUTPUT_DIR) -> dash.Dash:
         Configured Dash application
     """
     app = dash.Dash(__name__)
-    app.title = "AMD vLLM Benchmark Results"
+    app.title = "vLLM Benchmark Results"
 
     # Get initial data
     available_folders = get_experiment_folders(output_dir)
@@ -140,7 +140,7 @@ def create_app(output_dir: str = OUTPUT_DIR) -> dash.Dash:
 
         # Header
         html.H1(
-            "AMD vLLM Benchmark Results",
+            "vLLM Benchmark Results",
             style={'textAlign': 'center', 'marginTop': 20, 'color': '#333'}
         ),
 
@@ -243,7 +243,7 @@ def create_app(output_dir: str = OUTPUT_DIR) -> dash.Dash:
         html.Div([
             html.Hr(),
             html.P(
-                "AMD vLLM Benchmark Tool - Visualization Dashboard",
+                "vLLM Benchmark Tool - Visualization Dashboard",
                 style={'textAlign': 'center', 'color': '#666', 'fontSize': '14px'}
             )
         ], style={'margin': '20px'}),

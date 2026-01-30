@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AMD vLLM Benchmark Tool - Main CLI orchestrator."""
+"""vLLM Benchmark Tool - Main CLI orchestrator."""
 
 import json
 import sys
@@ -28,7 +28,7 @@ DEFAULT_IMAGE = "vllm-rocm71:latest"
 @click.group()
 @click.version_option(version="1.0.0", prog_name="amd-bench")
 def cli():
-    """AMD vLLM Benchmark Tool - Unified benchmarking for vLLM on AMD GPUs."""
+    """vLLM Benchmark Tool - Unified benchmarking for vLLM on GPUs."""
     pass
 
 
@@ -41,7 +41,7 @@ def cli():
 def check(verbose):
     """Run all system checks (AMD driver, ROCm, Docker)."""
     console.print(Panel.fit(
-        "[bold blue]AMD vLLM Benchmark - System Check[/bold blue]",
+        "[bold blue]vLLM Benchmark - System Check[/bold blue]",
         border_style="blue"
     ))
 
@@ -333,7 +333,7 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
 
     # Display configuration
     console.print(Panel.fit(
-        "[bold blue]AMD vLLM Benchmark[/bold blue]",
+        "[bold blue]vLLM Benchmark[/bold blue]",
         border_style="blue"
     ))
 
@@ -477,7 +477,7 @@ def webui(output_dir, host, port, debug):
         output_dir = str(PROJECT_ROOT / "output")
 
     console.print(Panel.fit(
-        "[bold blue]AMD vLLM Benchmark - Web UI[/bold blue]",
+        "[bold blue]vLLM Benchmark - Web UI[/bold blue]",
         border_style="blue"
     ))
 

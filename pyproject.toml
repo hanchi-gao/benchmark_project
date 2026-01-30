@@ -1,7 +1,7 @@
 [project]
-name = "amd-vllm-benchmark"
+name = "vllm-benchmark"
 version = "1.0.0"
-description = "AMD vLLM Benchmark Tool - Unified benchmarking and visualization for vLLM on AMD GPUs"
+description = "vLLM Benchmark Tool - Unified benchmarking and visualization for vLLM on GPUs"
 requires-python = ">=3.10"
 dependencies = [
     "click>=8.0.0",      # CLI framework
@@ -19,7 +19,7 @@ dev = [
 ]
 
 [project.scripts]
-amd-bench = "main:cli"
+vllm-bench = "main:cli"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
