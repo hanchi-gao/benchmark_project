@@ -16,7 +16,7 @@ from rich import print as rprint
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from checks import check_amd_driver, check_rocm, check_docker
+from checks import check_amd_driver, check_rocm, check_docker, detect_gpu_platform, GpuPlatform, check_nvidia
 from docker.manager import DockerManager
 from benchmarks.benchmark_runner import BenchmarkRunner, BenchmarkConfig
 
@@ -39,7 +39,7 @@ def cli():
 @cli.command()
 @click.option('--verbose', '-v', is_flag=True, help='Show detailed output')
 def check(verbose):
-    """Run all system checks (AMD driver, ROCm, Docker)."""
+    """Run all system checks (GPU driver, runtime, Docker)."""
     console.print(Panel.fit(
         "[bold blue]vLLM Benchmark - System Check[/bold blue]",
         border_style="blue"
@@ -47,32 +47,55 @@ def check(verbose):
 
     all_passed = True
 
-    # AMD Driver Check
-    console.print("\n[bold]1. AMD Driver Check[/bold]")
-    driver_result = check_amd_driver()
-    for check_item in driver_result["checks"]:
-        status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
-        console.print(f"   {check_item['name']}: {status}")
-        if verbose or not check_item["passed"]:
-            console.print(f"      {check_item['message']}")
-    if not driver_result["success"]:
-        all_passed = False
+    # GPU Platform Detection
+    platform, platform_msg = detect_gpu_platform()
+    console.print(f"\n[bold]GPU Platform:[/bold] {platform_msg}")
 
-    # ROCm Check
-    console.print("\n[bold]2. ROCm Installation Check[/bold]")
-    rocm_result = check_rocm()
-    for check_item in rocm_result["checks"]:
-        status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
-        console.print(f"   {check_item['name']}: {status}")
-        if verbose or not check_item["passed"]:
-            console.print(f"      {check_item['message']}")
-    if rocm_result.get("gpu_count", 0) > 0:
-        console.print(f"   GPU Count: [cyan]{rocm_result['gpu_count']}[/cyan]")
-    if not rocm_result["success"]:
-        all_passed = False
+    if platform == GpuPlatform.AMD:
+        # AMD Driver Check
+        console.print("\n[bold]1. AMD Driver Check[/bold]")
+        driver_result = check_amd_driver()
+        for check_item in driver_result["checks"]:
+            status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
+            console.print(f"   {check_item['name']}: {status}")
+            if verbose or not check_item["passed"]:
+                console.print(f"      {check_item['message']}")
+        if not driver_result["success"]:
+            all_passed = False
 
-    # Docker Check
-    console.print("\n[bold]3. Docker Check[/bold]")
+        # ROCm Check
+        console.print("\n[bold]2. ROCm Installation Check[/bold]")
+        rocm_result = check_rocm()
+        for check_item in rocm_result["checks"]:
+            status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
+            console.print(f"   {check_item['name']}: {status}")
+            if verbose or not check_item["passed"]:
+                console.print(f"      {check_item['message']}")
+        if rocm_result.get("gpu_count", 0) > 0:
+            console.print(f"   GPU Count: [cyan]{rocm_result['gpu_count']}[/cyan]")
+        if not rocm_result["success"]:
+            all_passed = False
+
+    elif platform == GpuPlatform.NVIDIA:
+        console.print("\n[bold]1. NVIDIA GPU Check[/bold]")
+        nvidia_result = check_nvidia()
+        for check_item in nvidia_result["checks"]:
+            status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
+            console.print(f"   {check_item['name']}: {status}")
+            if verbose or not check_item["passed"]:
+                console.print(f"      {check_item['message']}")
+        if nvidia_result.get("gpu_count", 0) > 0:
+            console.print(f"   GPU Count: [cyan]{nvidia_result['gpu_count']}[/cyan]")
+        if not nvidia_result["success"]:
+            all_passed = False
+
+    else:
+        console.print("\n[yellow]No GPU detected. Benchmark execution requires a GPU,[/yellow]")
+        console.print("[yellow]but the Web UI can still be used to view existing results.[/yellow]")
+
+    # Docker Check (always run)
+    step_num = 3 if platform == GpuPlatform.AMD else 2
+    console.print(f"\n[bold]{step_num}. Docker Check[/bold]")
     docker_result = check_docker()
     for check_item in docker_result["checks"]:
         status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
