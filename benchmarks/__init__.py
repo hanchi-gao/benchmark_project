@@ -1,4 +1,4 @@
-"""Benchmark runner modules for AMD vLLM Benchmark."""
+"""Benchmark runner modules for vLLM Benchmark."""
 
 from .benchmark_runner import BenchmarkRunner
 

@@ -1,4 +1,4 @@
-"""Docker management module for AMD vLLM Benchmark."""
+"""Docker management module for vLLM Benchmark."""
 
 from .manager import DockerManager
 

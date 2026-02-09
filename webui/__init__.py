@@ -1,1 +1,1 @@
-"""Web UI module for AMD vLLM Benchmark visualization."""
+"""Web UI module for vLLM Benchmark visualization."""

@@ -26,7 +26,7 @@ DEFAULT_IMAGE = "vllm-rocm71:latest"
 
 
 @click.group()
-@click.version_option(version="1.0.0", prog_name="amd-bench")
+@click.version_option(version="1.0.0", prog_name="vllm-bench")
 def cli():
     """vLLM Benchmark Tool - Unified benchmarking for vLLM on GPUs."""
     pass
