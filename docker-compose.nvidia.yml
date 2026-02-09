@@ -1,0 +1,23 @@
+# NVIDIA GPU override - use with: docker compose -f docker-compose.yml -f docker-compose.nvidia.yml up
+services:
+  vllm-server:
+    devices: []
+    group_add: []
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  vllm-bench-client:
+    devices: []
+    group_add: []
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

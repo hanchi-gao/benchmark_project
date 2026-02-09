@@ -187,7 +187,15 @@ def start(image):
 
     console.print(f"\n[bold]Starting Docker containers with image:[/bold] {image}")
 
-    manager = DockerManager(PROJECT_ROOT, image=image)
+    # Auto-detect GPU platform for compose overrides
+    platform, _ = detect_gpu_platform()
+    compose_overrides = []
+    if platform == GpuPlatform.NVIDIA:
+        override_path = str(PROJECT_ROOT / "docker-compose.nvidia.yml")
+        compose_overrides = [override_path]
+        console.print("[dim]Detected NVIDIA GPU - using NVIDIA compose override[/dim]")
+
+    manager = DockerManager(PROJECT_ROOT, image=image, compose_overrides=compose_overrides)
     success, message = manager.start()
 
     if success:
