@@ -43,6 +43,7 @@ Thumbs.db
 output/
 _sources/
 *.log
+.worktrees/
 
 # Secrets
 .env
