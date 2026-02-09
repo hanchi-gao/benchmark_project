@@ -321,6 +321,21 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
     Make sure containers are running (python3 main.py docker start) and vLLM server
     is started inside the vllm-server container.
     """
+    # Input validation
+    import re as _re
+
+    if not (0.0 < gpu_memory_utilization <= 1.0):
+        console.print("[red]Error: --gpu-memory-utilization must be between 0.0 and 1.0 (exclusive/inclusive)[/red]")
+        sys.exit(1)
+
+    if not _re.match(r'^\d+(,\d+)*$', gpu_ids):
+        console.print("[red]Error: Invalid GPU IDs format. Use comma-separated integers (e.g., '0,1,2')[/red]")
+        sys.exit(1)
+
+    if num_prompts_start > num_prompts:
+        console.print("[red]Error: --num-prompts-start cannot be greater than --num-prompts (start > end)[/red]")
+        sys.exit(1)
+
     manager = DockerManager(PROJECT_ROOT)
 
     # Check if containers are running
