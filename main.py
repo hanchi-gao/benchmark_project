@@ -392,97 +392,86 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
 
     console.print(table)
 
-    # Build the benchmark command to run inside the container
+    # Set up BenchmarkRunner
+    bench_config = BenchmarkConfig(
+        gpu_count=gpu_count,
+        gpu_ids=gpu_ids,
+        model=model,
+        gpu_memory_utilization=gpu_memory_utilization,
+        input_len=input_len,
+        output_len=output_len,
+        num_prompts=num_prompts,
+        num_prompts_start=num_prompts_start,
+        num_prompts_end=num_prompts,
+        experiment_name=experiment_name,
+        max_model_len=max_model_len,
+        vllm_server_url=server_url,
+    )
+    runner = BenchmarkRunner(bench_config, output_dir=PROJECT_ROOT / "output")
+
     experiment_dir = f"/root/output/{experiment_name}"
 
     console.print("\n[bold]Running benchmark inside container...[/bold]")
     console.print(f"[dim]Output directory: {experiment_dir}[/dim]\n")
 
     # Create experiment directory inside container
-    mkdir_cmd = f"mkdir -p {experiment_dir}"
-    manager.exec_benchmark(mkdir_cmd, stream_output=False)
+    manager.exec_benchmark(f"mkdir -p {experiment_dir}", stream_output=False)
 
     # Collect and save experiment configuration
     console.print("[bold]Collecting system information...[/bold]")
 
-    # Get GPU info from container
-    gpu_info_cmd = "rocm-smi --showproductname --showmeminfo vram --json 2>/dev/null || echo '{}'"
+    gpu_info_cmd = "rocm-smi --showproductname --showmeminfo vram --json 2>/dev/null || nvidia-smi --query-gpu=name,memory.total --format=csv 2>/dev/null || echo '{}'"
     _, gpu_info_raw = manager.exec_benchmark(gpu_info_cmd, stream_output=False)
 
-    # Get vLLM version
     vllm_version_cmd = "pip show vllm 2>/dev/null | grep Version | cut -d' ' -f2 || echo 'unknown'"
     _, vllm_version = manager.exec_benchmark(vllm_version_cmd, stream_output=False)
 
-    # Get ROCm version
-    rocm_version_cmd = "cat /opt/rocm/.info/version 2>/dev/null || echo 'unknown'"
+    rocm_version_cmd = "cat /opt/rocm/.info/version 2>/dev/null || echo 'N/A'"
     _, rocm_version = manager.exec_benchmark(rocm_version_cmd, stream_output=False)
 
-    # Build config JSON
-    config = {
+    exp_config = {
         "experiment_name": experiment_name,
         "timestamp": datetime.now().isoformat(),
-        "model": {
-            "name": model,
-            "max_model_len": max_model_len
-        },
+        "model": {"name": model, "max_model_len": max_model_len},
         "gpu": {
             "count": gpu_count,
             "ids": gpu_ids,
             "memory_utilization": gpu_memory_utilization,
-            "info_raw": gpu_info_raw.strip()
+            "info_raw": gpu_info_raw.strip(),
         },
         "benchmark": {
             "input_len": input_len,
             "output_len": output_len,
             "num_prompts_start": num_prompts_start,
             "num_prompts_end": num_prompts,
-            "server_url": server_url
+            "server_url": server_url,
         },
         "environment": {
             "vllm_version": vllm_version.strip(),
-            "rocm_version": rocm_version.strip()
-        }
+            "rocm_version": rocm_version.strip(),
+        },
     }
 
-    # Save config file inside container (will be synced to host via volume)
-    config_json = json.dumps(config, indent=2)
+    config_json = json.dumps(exp_config, indent=2)
     save_config_cmd = f"cat > {experiment_dir}/config.json << 'EOF'\n{config_json}\nEOF"
     manager.exec_benchmark(save_config_cmd, stream_output=False)
+    console.print(f"[green]Configuration saved to {experiment_dir}/config.json[/green]\n")
 
-    console.print(f"[green]✓ Configuration saved to {experiment_dir}/config.json[/green]\n")
-
-    # Run benchmarks for each num_prompts value
+    # Run benchmarks
     total = num_prompts - num_prompts_start + 1
     completed = 0
     failed = 0
 
-    for np in range(num_prompts_start, num_prompts + 1):
+    for np_val in range(num_prompts_start, num_prompts + 1):
         completed += 1
-        result_file = f"{experiment_dir}/np{np}_$(date +%Y%m%d_%H%M%S).json"
+        bench_cmd = runner.build_docker_benchmark_command(np_val, experiment_dir)
+        console.print(f"[cyan][{completed}/{total}] Running num_prompts={np_val}...[/cyan]")
 
-        bench_cmd = f"""
-cd {experiment_dir} && \\
-vllm bench serve \\
-    --model "{model}" \\
-    --backend openai \\
-    --endpoint /v1/completions \\
-    --base-url {server_url} \\
-    --dataset-name random \\
-    --random-input-len {input_len} \\
-    --random-output-len {output_len} \\
-    --num-prompts {np} \\
-    --ignore-eos \\
-    --save-result \\
-    --result-filename "np{np}_$(date +%Y%m%d_%H%M%S).json"
-"""
-        console.print(f"[cyan][{completed}/{total}] Running num_prompts={np}...[/cyan]")
-
-        success, output = manager.exec_benchmark(bench_cmd.strip(), stream_output=True)
-
+        success, output = manager.exec_benchmark(bench_cmd, stream_output=True)
         if success:
-            console.print(f"[green]  ✓ num_prompts={np} completed[/green]")
+            console.print(f"[green]  num_prompts={np_val} completed[/green]")
         else:
-            console.print(f"[red]  ✗ num_prompts={np} failed[/red]")
+            console.print(f"[red]  num_prompts={np_val} failed[/red]")
             failed += 1
 
     # Summary

@@ -89,6 +89,33 @@ class BenchmarkRunner:
         ]
         return cmd
 
+    def build_docker_benchmark_command(self, num_prompts: int, experiment_dir: str) -> str:
+        """
+        Build a shell command string for running a benchmark inside a Docker container.
+
+        Args:
+            num_prompts: Number of prompts to test
+            experiment_dir: Path inside the container for results
+
+        Returns:
+            Shell command string ready for docker exec
+        """
+        return (
+            f'cd {experiment_dir} && '
+            f'vllm bench serve '
+            f'--model "{self.config.model}" '
+            f'--backend openai '
+            f'--endpoint /v1/completions '
+            f'--base-url {self.config.vllm_server_url} '
+            f'--dataset-name random '
+            f'--random-input-len {self.config.input_len} '
+            f'--random-output-len {self.config.output_len} '
+            f'--num-prompts {num_prompts} '
+            f'--ignore-eos '
+            f'--save-result '
+            f'--result-filename "np{num_prompts}_$(date +%Y%m%d_%H%M%S).json"'
+        )
+
     def wait_for_server(self, timeout: int = 300) -> bool:
         """Wait for vLLM server to be ready."""
         import urllib.request
