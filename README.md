@@ -83,9 +83,8 @@ python main.py check [--verbose]
 ### Docker Commands
 
 ```bash
-python main.py docker pull [--image IMAGE]
 python main.py docker start [--image IMAGE]
-python main.py docker stop
+python main.py docker stop [--volumes]
 python main.py docker status
 python main.py docker logs [--service SERVICE] [--tail N]
 ```

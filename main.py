@@ -141,22 +141,6 @@ def docker():
 
 
 @docker.command()
-@click.option('--image', default=DEFAULT_IMAGE, help='Docker image to pull')
-def pull(image):
-    """Pull vLLM Docker image."""
-    console.print(f"[bold]Pulling Docker image:[/bold] {image}")
-
-    manager = DockerManager(PROJECT_ROOT, image=image)
-    success, message = manager.pull()
-
-    if success:
-        console.print(f"[green]{message}[/green]")
-    else:
-        console.print(f"[red]Failed to pull image: {message}[/red]")
-        sys.exit(1)
-
-
-@docker.command()
 @click.option('--image', default=None, help='Docker image to use (interactive if not specified)')
 def start(image):
     """Start Docker containers."""
@@ -168,7 +152,7 @@ def start(image):
 
         if not images:
             console.print("[red]No vLLM/ROCm Docker images found.[/red]")
-            console.print("Please pull an image first: python3 main.py docker pull --image <image>")
+            console.print("Pull an image first: [green]docker pull <image>[/green]")
             sys.exit(1)
 
         console.print("\n[bold]Available vLLM Images:[/bold]")
@@ -231,23 +215,8 @@ def start(image):
 
 
 @docker.command()
-def stop():
-    """Stop Docker containers (keeps containers)."""
-    console.print("[bold]Stopping Docker containers...[/bold]")
-
-    manager = DockerManager(PROJECT_ROOT)
-    success, message = manager.stop()
-
-    if success:
-        console.print("[green]Containers stopped successfully[/green]")
-    else:
-        console.print(f"[red]Failed to stop containers: {message}[/red]")
-        sys.exit(1)
-
-
-@docker.command()
 @click.option('--volumes', '-v', is_flag=True, help='Also remove volumes')
-def down(volumes):
+def stop(volumes):
     """Stop and remove Docker containers."""
     console.print("[bold]Stopping and removing Docker containers...[/bold]")
 
@@ -255,9 +224,9 @@ def down(volumes):
     success, message = manager.down(volumes=volumes)
 
     if success:
-        console.print("[green]Containers removed successfully[/green]")
+        console.print("[green]Containers stopped and removed[/green]")
     else:
-        console.print(f"[red]Failed to remove containers: {message}[/red]")
+        console.print(f"[red]Failed to stop containers: {message}[/red]")
         sys.exit(1)
 
 
