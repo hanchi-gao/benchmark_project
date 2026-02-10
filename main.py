@@ -8,17 +8,23 @@ from pathlib import Path
 
 import click
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
-from rich import print as rprint
+from rich.table import Table
 
 # Add project root to path for imports
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from checks import check_amd_driver, check_rocm, check_docker, detect_gpu_platform, GpuPlatform, check_nvidia
-from docker.manager import DockerManager
-from benchmarks.benchmark_runner import BenchmarkRunner, BenchmarkConfig
+from benchmarks.benchmark_runner import BenchmarkConfig, BenchmarkRunner  # noqa: E402
+from checks import (  # noqa: E402
+    GpuPlatform,
+    check_amd_driver,
+    check_docker,
+    check_nvidia,
+    check_rocm,
+    detect_gpu_platform,
+)
+from docker.manager import DockerManager  # noqa: E402
 
 console = Console()
 
@@ -268,7 +274,7 @@ def reset():
     if success:
         console.print("\n[green]Docker environment reset successfully[/green]")
     else:
-        console.print(f"\n[red]Reset completed with warnings[/red]")
+        console.print("\n[red]Reset completed with warnings[/red]")
 
 
 @docker.command()
@@ -428,7 +434,11 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
     # Collect and save experiment configuration
     console.print("[bold]Collecting system information...[/bold]")
 
-    gpu_info_cmd = "rocm-smi --showproductname --showmeminfo vram --json 2>/dev/null || nvidia-smi --query-gpu=name,memory.total --format=csv 2>/dev/null || echo '{}'"
+    gpu_info_cmd = (
+        "rocm-smi --showproductname --showmeminfo vram --json 2>/dev/null"
+        " || nvidia-smi --query-gpu=name,memory.total --format=csv 2>/dev/null"
+        " || echo '{}'"
+    )
     _, gpu_info_raw = manager.exec_benchmark(gpu_info_cmd, stream_output=False)
 
     vllm_version_cmd = "pip show vllm 2>/dev/null | grep Version | cut -d' ' -f2 || echo 'unknown'"
@@ -518,7 +528,7 @@ def webui(output_dir, host, port, debug):
 
     console.print(f"Output directory: {output_dir}")
     console.print(f"Starting web UI at http://{host}:{port}")
-    console.print(f"Press Ctrl+C to stop\n")
+    console.print("Press Ctrl+C to stop\n")
 
     run_app(output_dir=output_dir, host=host, port=port, debug=debug)
 

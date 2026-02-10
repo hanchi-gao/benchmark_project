@@ -47,7 +47,7 @@ def get_nvidia_gpu_count() -> int:
             capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0:
-            return len([l for l in result.stdout.strip().split("\n") if l.strip()])
+            return len([line for line in result.stdout.strip().split("\n") if line.strip()])
         return 0
     except Exception:
         return 0

@@ -1,8 +1,9 @@
 """Tests for system check modules."""
 
-from unittest.mock import patch, MagicMock
-from checks.gpu_detect import detect_gpu_platform, GpuPlatform
+from unittest.mock import MagicMock, patch
+
 from checks.docker_check import check_docker_daemon
+from checks.gpu_detect import GpuPlatform, detect_gpu_platform
 from checks.nvidia_check import check_nvidia_driver
 
 

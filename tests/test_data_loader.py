@@ -3,11 +3,12 @@
 import json
 import tempfile
 from pathlib import Path
+
 from webui.data_loader import (
     extract_metadata_from_folder_name,
+    filter_folders_by_metadata,
     get_experiment_folders,
     load_experiment_data,
-    filter_folders_by_metadata,
 )
 
 

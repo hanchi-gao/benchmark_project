@@ -1,7 +1,7 @@
 """Docker readiness validation module."""
 
 import subprocess
-from typing import Tuple, List, Optional
+from typing import List, Optional, Tuple
 
 
 def check_docker_daemon() -> Tuple[bool, str]:

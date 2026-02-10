@@ -2,7 +2,7 @@
 
 import subprocess
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 
 def check_rocm_path() -> Tuple[bool, str]:
@@ -89,7 +89,7 @@ def get_gpu_count() -> int:
                 return count
             # Alternative counting
             lines = result.stdout.strip().split('\n')
-            gpu_lines = [l for l in lines if l.strip().startswith("GPU")]
+            gpu_lines = [line for line in lines if line.strip().startswith("GPU")]
             return len(gpu_lines)
         return 0
     except Exception:

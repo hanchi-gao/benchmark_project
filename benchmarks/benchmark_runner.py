@@ -4,7 +4,7 @@ import json
 import os
 import subprocess
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -118,8 +118,8 @@ class BenchmarkRunner:
 
     def wait_for_server(self, timeout: int = 300) -> bool:
         """Wait for vLLM server to be ready."""
-        import urllib.request
         import urllib.error
+        import urllib.request
 
         health_url = f"{self.config.vllm_server_url}/health"
         start_time = time.time()
@@ -138,7 +138,6 @@ class BenchmarkRunner:
     def check_server_model(self) -> Tuple[bool, Optional[str]]:
         """Check which model is loaded on the server."""
         import urllib.request
-        import json
 
         try:
             models_url = f"{self.config.vllm_server_url}/v1/models"
@@ -195,7 +194,7 @@ class BenchmarkRunner:
 
         except subprocess.TimeoutExpired:
             return False, None
-        except Exception as e:
+        except Exception:
             return False, None
 
     def run_benchmark_suite(self, callback=None) -> dict:

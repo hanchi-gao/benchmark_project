@@ -1,7 +1,9 @@
 """Tests for CLI input validation."""
 
 from unittest.mock import patch
+
 from click.testing import CliRunner
+
 from main import cli
 
 

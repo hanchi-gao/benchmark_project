@@ -2,7 +2,7 @@
 
 import subprocess
 from pathlib import Path
-from typing import Tuple, List
+from typing import List, Tuple
 
 
 def check_amdgpu_module() -> Tuple[bool, str]:

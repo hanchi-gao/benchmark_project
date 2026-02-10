@@ -1,17 +1,17 @@
 """Dash web application for benchmark visualization."""
 
 import dash
-from dash import dcc, html, Input, Output, State
 import plotly.graph_objects as go
+from dash import Input, Output, State, dcc, html
 from plotly.subplots import make_subplots
 
+from .config import CHART_TABS, OUTPUT_DIR, X_AXIS_FIELD, X_AXIS_LABEL
 from .data_loader import (
+    filter_folders_by_metadata,
+    get_all_metadata_values,
     get_experiment_folders,
     load_multiple_experiments,
-    get_all_metadata_values,
-    filter_folders_by_metadata,
 )
-from .config import CHART_TABS, X_AXIS_FIELD, X_AXIS_LABEL, OUTPUT_DIR
 
 
 def create_app(output_dir: str = OUTPUT_DIR) -> dash.Dash:
@@ -163,7 +163,10 @@ def create_app(output_dir: str = OUTPUT_DIR) -> dash.Dash:
                     html.Label("TP Size"),
                     dcc.Dropdown(
                         id='tp-filter',
-                        options=[{'label': f'TP={v}', 'value': v} for v in metadata_values.get('tensor_parallel_size', [])],
+                        options=[
+                            {'label': f'TP={v}', 'value': v}
+                            for v in metadata_values.get('tensor_parallel_size', [])
+                        ],
                         placeholder="All",
                         clearable=True,
                         style={'width': '100%'}
