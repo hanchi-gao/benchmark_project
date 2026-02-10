@@ -14,16 +14,21 @@ A unified benchmarking and visualization tool for [vLLM](https://github.com/vllm
 
 ### Prerequisites
 
-- AMD GPU with ROCm support
+- **GPU** (one of):
+  - AMD GPU with [ROCm](https://rocm.docs.amd.com/) support
+  - NVIDIA GPU with [CUDA](https://developer.nvidia.com/cuda-toolkit) drivers and [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 - Docker with GPU access configured
 - Python 3.10+
 - [uv](https://github.com/astral-sh/uv) (recommended) or pip
 
+> **No GPU?** You can still use the Web UI to view existing benchmark results.
+
 ### Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/amd-vllm-benchmark.git
-cd amd-vllm-benchmark
+git clone <repository-url>
+cd vllm-benchmark
+uv sync  # or: pip install -e .
 ```
 
 ## Quick Start
@@ -114,15 +119,18 @@ Access from other machines on the same LAN: `http://<YOUR_IP>:8050`
 ## Project Structure
 
 ```
-/home/henry/benchmark_project/
+vllm-benchmark/
 ├── main.py                      # Main CLI orchestrator
 ├── pyproject.toml               # Dependencies
-├── docker-compose.yml           # Docker Compose configuration
+├── docker-compose.yml           # Docker Compose configuration (AMD default)
+├── docker-compose.nvidia.yml    # NVIDIA GPU override
 ├── README.md
 │
 ├── checks/                      # System validation
 │   ├── __init__.py
+│   ├── gpu_detect.py           # GPU platform auto-detection
 │   ├── amd_driver.py           # AMD driver checks
+│   ├── nvidia_check.py         # NVIDIA driver checks
 │   ├── rocm_check.py           # ROCm installation checks
 │   └── docker_check.py         # Docker readiness checks
 │
@@ -140,8 +148,7 @@ Access from other machines on the same LAN: `http://<YOUR_IP>:8050`
 │   ├── config.py               # Chart configurations
 │   └── data_loader.py          # JSON data loading
 │
-├── scripts/                     # Shell scripts
-│   └── run_benchmark.sh        # Benchmark runner script
+├── tests/                       # Test suite
 │
 ├── output/                      # Results directory
 │   └── {experiment_name}/      # Per-experiment folders
@@ -221,6 +228,8 @@ VLLM_IMAGE=my-custom-image:v1 docker compose up -d
 python main.py docker start --image my-custom-image:v1
 ```
 
+The tool auto-detects your GPU platform. For NVIDIA GPUs, it automatically applies `docker-compose.nvidia.yml` as an override to use the NVIDIA Container Toolkit.
+
 Default image: `vllm-rocm71:latest`
 
 ## Benchmark Results Format
@@ -259,6 +268,20 @@ uv run python3 main.py webui
 ip addr | grep "inet " | grep -v 127.0.0.1
 
 # Share with coworkers: http://<YOUR_IP>:8050
+```
+
+## Development
+
+### Running Tests
+
+```bash
+uv run pytest tests/ -v
+```
+
+### Linting
+
+```bash
+uv run ruff check .
 ```
 
 ## License
