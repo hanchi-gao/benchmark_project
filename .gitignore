@@ -44,6 +44,7 @@ output/
 _sources/
 *.log
 .worktrees/
+docs/plans/
 
 # Secrets
 .env
