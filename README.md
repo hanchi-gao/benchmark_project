@@ -77,16 +77,16 @@ python3 main.py docker stop
 ### System Check
 
 ```bash
-python main.py check [--verbose]
+python3 main.py check [--verbose]
 ```
 
 ### Docker Commands
 
 ```bash
-python main.py docker start [--image IMAGE]
-python main.py docker stop [--volumes]
-python main.py docker status
-python main.py docker logs [--service SERVICE] [--tail N]
+python3 main.py docker start [--image IMAGE]
+python3 main.py docker stop [--volumes]
+python3 main.py docker status
+python3 main.py docker logs [--service SERVICE] [--tail N]
 ```
 
 ### Benchmark Commands
@@ -224,7 +224,7 @@ The `docker-compose.yml` supports configurable images via environment variable:
 VLLM_IMAGE=my-custom-image:v1 docker compose up -d
 
 # Or via CLI
-python main.py docker start --image my-custom-image:v1
+python3 main.py docker start --image my-custom-image:v1
 ```
 
 The tool auto-detects your GPU platform. For NVIDIA GPUs, it automatically applies `docker-compose.nvidia.yml` as an override to use the NVIDIA Container Toolkit.
