@@ -42,6 +42,7 @@ Thumbs.db
 # Project specific
 output/
 _sources/
+mgpu_test_pcie/
 *.log
 .worktrees/
 docs/plans/
