@@ -133,6 +133,7 @@ def extract_metadata_from_folder_name(folder_name: str) -> dict:
         r'(llama-[\d.]+-\d+b)',
         r'(gpt-oss-\d+b)',
         r'(qwen[\d]+-\d+b)',
+        r'(phi-\d+-\d+b)',
     ]
     for pattern in model_patterns:
         model_match = re.search(pattern, folder_name, re.IGNORECASE)
