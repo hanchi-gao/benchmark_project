@@ -17,6 +17,7 @@ A unified benchmarking and visualization tool for [vLLM](https://github.com/vllm
 - **GPU** (one of):
   - AMD GPU with [ROCm](https://rocm.docs.amd.com/) support
   - NVIDIA GPU with [CUDA](https://developer.nvidia.com/cuda-toolkit) drivers and [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+  - Intel Arc GPU with `xe` or `i915` kernel driver
 - Docker with GPU access configured
 - Python 3.10+
 - [uv](https://github.com/astral-sh/uv) (recommended) or pip
@@ -80,6 +81,46 @@ python3 main.py docker stop
 python3 main.py check [--verbose]
 ```
 
+The check command auto-detects your GPU platform and runs the appropriate checks:
+
+| Platform | Checks performed |
+|----------|-----------------|
+| AMD | AMD kernel module (`amdgpu`), `/dev/kfd` device, ROCm installation, GPU count |
+| NVIDIA | `nvidia-smi` driver version, GPU detection and count |
+| Intel Arc | `xe`/`i915` kernel module, `/dev/dri/renderD*` devices, GPU count |
+
+Example output for NVIDIA:
+```
+GPU Platform: NVIDIA GPU detected
+
+1. NVIDIA GPU Check
+   NVIDIA Driver: OK
+      NVIDIA driver version: 535.129.03
+   GPU Detection: OK
+      Detected GPUs: 1
+        - NVIDIA GeForce RTX 4090, 24564 MiB
+   GPU Count: 1
+
+2. Docker Check
+   ...
+```
+
+Example output for Intel:
+```
+GPU Platform: Intel GPU detected
+
+1. Intel GPU Check
+   Intel GPU Driver: OK
+      Intel Xe GPU driver loaded
+   DRI Render Devices: OK
+      Detected 1 DRI render device(s)
+        - /dev/dri/renderD128
+   GPU Count: 1
+
+2. Docker Check
+   ...
+```
+
 ### Docker Commands
 
 ```bash
@@ -123,6 +164,7 @@ vllm-benchmark/
 ├── pyproject.toml               # Dependencies
 ├── docker-compose.yml           # Docker Compose configuration (AMD default)
 ├── docker-compose.nvidia.yml    # NVIDIA GPU override
+├── docker-compose.intel.yml     # Intel Arc GPU override
 ├── README.md
 │
 ├── checks/                      # System validation
@@ -130,6 +172,7 @@ vllm-benchmark/
 │   ├── gpu_detect.py           # GPU platform auto-detection
 │   ├── amd_driver.py           # AMD driver checks
 │   ├── nvidia_check.py         # NVIDIA driver checks
+│   ├── intel_check.py          # Intel Arc driver checks
 │   ├── rocm_check.py           # ROCm installation checks
 │   └── docker_check.py         # Docker readiness checks
 │
@@ -227,9 +270,18 @@ VLLM_IMAGE=my-custom-image:v1 docker compose up -d
 python3 main.py docker start --image my-custom-image:v1
 ```
 
-The tool auto-detects your GPU platform. For NVIDIA GPUs, it automatically applies `docker-compose.nvidia.yml` as an override to use the NVIDIA Container Toolkit.
+The tool auto-detects your GPU platform and automatically applies the appropriate compose override:
 
-Default image: `vllm-rocm71:latest`
+| Platform | Compose override | Notes |
+|----------|-----------------|-------|
+| AMD | *(none — base config)* | `/dev/kfd` + `/dev/dri` devices |
+| NVIDIA | `docker-compose.nvidia.yml` | NVIDIA Container Toolkit runtime |
+| Intel Arc | `docker-compose.intel.yml` | `--privileged`, `--net=host`, `/dev/dri` + `/dev/dri/by-path` |
+
+Default images by platform:
+- AMD: `vllm-rocm71:latest`
+- NVIDIA: select interactively or specify with `--image`
+- Intel Arc: `intel/llm-scaler-vllm:0.14.0-b8`
 
 ## Benchmark Results Format
 
@@ -261,7 +313,7 @@ uv run python3 main.py webui --output-dir /path/to/results
 
 ```bash
 # Start webui (binds to 0.0.0.0 by default)
-uv run python3 main.py webui
+t
 
 # Find your IP
 ip addr | grep "inet " | grep -v 127.0.0.1

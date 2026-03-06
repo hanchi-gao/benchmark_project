@@ -8,6 +8,7 @@ from typing import Tuple
 class GpuPlatform(Enum):
     AMD = "amd"
     NVIDIA = "nvidia"
+    INTEL = "intel"
     NONE = "none"
 
 
@@ -20,13 +21,14 @@ def detect_gpu_platform() -> Tuple[GpuPlatform, str]:
     """
     amd_found = _check_amd_present()
     nvidia_found = _check_nvidia_present()
+    intel_found = _check_intel_present()
 
-    if amd_found and nvidia_found:
-        return GpuPlatform.AMD, "Both AMD and NVIDIA GPUs detected (using AMD)"
-    elif amd_found:
+    if amd_found:
         return GpuPlatform.AMD, "AMD GPU detected"
     elif nvidia_found:
         return GpuPlatform.NVIDIA, "NVIDIA GPU detected"
+    elif intel_found:
+        return GpuPlatform.INTEL, "Intel GPU detected"
     else:
         return GpuPlatform.NONE, "No GPU detected"
 
@@ -62,3 +64,20 @@ def _check_nvidia_present() -> bool:
         return result.returncode == 0 and len(result.stdout.strip()) > 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
+
+
+def _check_intel_present() -> bool:
+    """Check if Intel GPU hardware is present."""
+    try:
+        result = subprocess.run(
+            ["lsmod"], capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            modules = result.stdout.split()
+            if "xe" in modules or "i915" in modules:
+                from pathlib import Path
+                if list(Path("/dev/dri").glob("renderD*")):
+                    return True
+    except Exception:
+        pass
+    return False

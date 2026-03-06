@@ -1,0 +1,29 @@
+# Intel Arc GPU override - use with: docker compose -f docker-compose.yml -f docker-compose.intel.yml up
+# Based on: docker run --shm-size 10g --net=host --ipc=host --privileged --device /dev/dri:/dev/dri
+services:
+  vllm-server:
+    devices:
+      - /dev/dri:/dev/dri
+    group_add: []
+    volumes:
+      - /dev/dri/by-path:/dev/dri/by-path
+    environment:
+      - PYTORCH_TUNABLEOP_ENABLED=0
+      - VLLM_USE_TRITON_FLASH_ATTN=
+    privileged: true
+    network_mode: host
+    ports: []
+
+  vllm-bench-client:
+    devices:
+      - /dev/dri:/dev/dri
+    group_add: []
+    volumes:
+      - /dev/dri/by-path:/dev/dri/by-path
+    environment:
+      - VLLM_SERVER_URL=http://localhost:8000
+      - PYTORCH_TUNABLEOP_ENABLED=0
+      - VLLM_USE_TRITON_FLASH_ATTN=
+    privileged: true
+    network_mode: host
+    ports: []

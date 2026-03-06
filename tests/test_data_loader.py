@@ -45,6 +45,19 @@ class TestExtractMetadata:
         assert meta["model_name"] == "qwen3-14b"
         assert meta["gpu_count"] == 4
 
+    def test_intel_arc_folder(self):
+        meta = extract_metadata_from_folder_name("1xArcProB60_x16_llama-3.1-8b_oneapi2024_1-200_TP1")
+        assert meta["gpu_count"] == 1
+        assert meta["pcie_config"] == "x16"
+        assert meta["model_name"] == "llama-3.1-8b"
+        assert meta["tensor_parallel_size"] == 1
+
+    def test_intel_arc_multi_gpu(self):
+        meta = extract_metadata_from_folder_name("2xArcProB60_x8_llama-3.1-70b_oneapi2024_1-200_TP2")
+        assert meta["gpu_count"] == 2
+        assert meta["tensor_parallel_size"] == 2
+        assert meta["model_name"] == "llama-3.1-70b"
+
     def test_no_metadata_folder(self):
         meta = extract_metadata_from_folder_name("random_folder_name")
         assert meta["gpu_count"] is None

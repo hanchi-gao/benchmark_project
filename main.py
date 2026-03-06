@@ -20,6 +20,7 @@ from checks import (  # noqa: E402
     GpuPlatform,
     check_amd_driver,
     check_docker,
+    check_intel,
     check_nvidia,
     check_rocm,
     detect_gpu_platform,
@@ -95,12 +96,25 @@ def check(verbose):
         if not nvidia_result["success"]:
             all_passed = False
 
+    elif platform == GpuPlatform.INTEL:
+        console.print("\n[bold]1. Intel GPU Check[/bold]")
+        intel_result = check_intel()
+        for check_item in intel_result["checks"]:
+            status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
+            console.print(f"   {check_item['name']}: {status}")
+            if verbose or not check_item["passed"]:
+                console.print(f"      {check_item['message']}")
+        if intel_result.get("gpu_count", 0) > 0:
+            console.print(f"   GPU Count: [cyan]{intel_result['gpu_count']}[/cyan]")
+        if not intel_result["success"]:
+            all_passed = False
+
     else:
         console.print("\n[yellow]No GPU detected. Benchmark execution requires a GPU,[/yellow]")
         console.print("[yellow]but the Web UI can still be used to view existing results.[/yellow]")
 
     # Docker Check (always run)
-    step_num = 3 if platform == GpuPlatform.AMD else 2
+    step_num = 3 if platform == GpuPlatform.AMD else 2 if platform in (GpuPlatform.NVIDIA, GpuPlatform.INTEL) else 1
     console.print(f"\n[bold]{step_num}. Docker Check[/bold]")
     docker_result = check_docker()
     for check_item in docker_result["checks"]:
@@ -184,6 +198,10 @@ def start(image):
         override_path = str(PROJECT_ROOT / "docker-compose.nvidia.yml")
         compose_overrides = [override_path]
         console.print("[dim]Detected NVIDIA GPU - using NVIDIA compose override[/dim]")
+    elif platform == GpuPlatform.INTEL:
+        override_path = str(PROJECT_ROOT / "docker-compose.intel.yml")
+        compose_overrides = [override_path]
+        console.print("[dim]Detected Intel GPU - using Intel compose override[/dim]")
 
     manager = DockerManager(PROJECT_ROOT, image=image, compose_overrides=compose_overrides)
     success, message = manager.start()

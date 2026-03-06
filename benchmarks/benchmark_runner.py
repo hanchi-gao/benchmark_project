@@ -50,6 +50,8 @@ class BenchmarkRunner:
         env["HIP_VISIBLE_DEVICES"] = self.config.gpu_ids
         # Also set CUDA_VISIBLE_DEVICES for compatibility
         env["CUDA_VISIBLE_DEVICES"] = self.config.gpu_ids
+        # Intel oneAPI GPU selection
+        env["ONEAPI_DEVICE_SELECTOR"] = f"level_zero:{self.config.gpu_ids}"
         return env
 
     def get_max_model_len(self) -> int:
