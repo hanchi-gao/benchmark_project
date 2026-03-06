@@ -3,7 +3,7 @@
 import os
 import subprocess
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 
 class DockerManager:
@@ -12,25 +12,22 @@ class DockerManager:
     DEFAULT_IMAGE = "vllm-rocm71:latest"
 
     def __init__(self, project_dir: Optional[Path] = None, image: Optional[str] = None,
-                 compose_overrides: Optional[List[str]] = None):
+                 compose_file: Optional[str] = None):
         """
         Initialize Docker manager.
 
         Args:
-            project_dir: Project directory containing docker-compose.yml
+            project_dir: Project directory containing docker-compose files
             image: Docker image to use (default: vllm-rocm71:latest)
-            compose_overrides: Additional compose override files
+            compose_file: Path to compose file (default: docker-compose.yml)
         """
         self.project_dir = project_dir or Path(__file__).parent.parent
         self.image = image or self.DEFAULT_IMAGE
-        self.compose_file = self.project_dir / "docker-compose.yml"
-        self.compose_overrides = compose_overrides or []
+        self.compose_file = Path(compose_file) if compose_file else self.project_dir / "docker-compose.yml"
 
     def _run_compose(self, *args, env: Optional[dict] = None) -> Tuple[bool, str]:
         """Run docker compose command."""
         cmd = ["docker", "compose", "-f", str(self.compose_file)]
-        for override in self.compose_overrides:
-            cmd.extend(["-f", override])
         cmd.extend(list(args))
 
         # Set up environment with image override
@@ -213,7 +210,7 @@ class DockerManager:
         except Exception:
             return False
 
-    def list_available_images(self) -> List[dict]:
+    def list_available_images(self) -> list[dict]:
         """
         List all vLLM-related Docker images with details.
 

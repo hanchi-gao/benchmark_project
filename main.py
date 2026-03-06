@@ -32,6 +32,17 @@ console = Console()
 DEFAULT_IMAGE = "vllm-rocm71:latest"
 
 
+def _get_compose_file(platform: GpuPlatform) -> Path:
+    """Return the standalone compose file for the detected GPU platform."""
+    match platform:
+        case GpuPlatform.NVIDIA:
+            return PROJECT_ROOT / "docker-compose.nvidia.yml"
+        case GpuPlatform.INTEL:
+            return PROJECT_ROOT / "docker-compose.intel.yml"
+        case _:  # AMD or unknown -> default AMD
+            return PROJECT_ROOT / "docker-compose.yml"
+
+
 @click.group()
 @click.version_option(version="1.0.0", prog_name="vllm-bench")
 def cli():
@@ -191,19 +202,17 @@ def start(image):
 
     console.print(f"\n[bold]Starting Docker containers with image:[/bold] {image}")
 
-    # Auto-detect GPU platform for compose overrides
+    # Auto-detect GPU platform and select standalone compose file
     platform, _ = detect_gpu_platform()
-    compose_overrides = []
-    if platform == GpuPlatform.NVIDIA:
-        override_path = str(PROJECT_ROOT / "docker-compose.nvidia.yml")
-        compose_overrides = [override_path]
-        console.print("[dim]Detected NVIDIA GPU - using NVIDIA compose override[/dim]")
-    elif platform == GpuPlatform.INTEL:
-        override_path = str(PROJECT_ROOT / "docker-compose.intel.yml")
-        compose_overrides = [override_path]
-        console.print("[dim]Detected Intel GPU - using Intel compose override[/dim]")
+    compose_file = _get_compose_file(platform)
+    platform_label = {
+        GpuPlatform.NVIDIA: "NVIDIA",
+        GpuPlatform.INTEL: "Intel",
+        GpuPlatform.AMD: "AMD",
+    }.get(platform, "AMD")
+    console.print(f"[dim]Detected {platform_label} GPU - using {compose_file.name}[/dim]")
 
-    manager = DockerManager(PROJECT_ROOT, image=image, compose_overrides=compose_overrides)
+    manager = DockerManager(PROJECT_ROOT, image=image, compose_file=str(compose_file))
     success, message = manager.start()
 
     if success:
@@ -238,7 +247,9 @@ def stop(volumes):
     """Stop and remove Docker containers."""
     console.print("[bold]Stopping and removing Docker containers...[/bold]")
 
-    manager = DockerManager(PROJECT_ROOT)
+    platform, _ = detect_gpu_platform()
+    compose_file = _get_compose_file(platform)
+    manager = DockerManager(PROJECT_ROOT, compose_file=str(compose_file))
     success, message = manager.down(volumes=volumes)
 
     if success:
@@ -254,7 +265,9 @@ def reset():
     console.print("[bold yellow]Resetting Docker environment...[/bold yellow]")
     console.print("This will remove ALL vllm-related containers.\n")
 
-    manager = DockerManager(PROJECT_ROOT)
+    platform, _ = detect_gpu_platform()
+    compose_file = _get_compose_file(platform)
+    manager = DockerManager(PROJECT_ROOT, compose_file=str(compose_file))
     success, message = manager.reset()
 
     console.print(message)
@@ -267,7 +280,9 @@ def reset():
 @docker.command()
 def status():
     """Show Docker container status."""
-    manager = DockerManager(PROJECT_ROOT)
+    platform, _ = detect_gpu_platform()
+    compose_file = _get_compose_file(platform)
+    manager = DockerManager(PROJECT_ROOT, compose_file=str(compose_file))
     success, output = manager.status()
 
     if success:
@@ -281,7 +296,9 @@ def status():
 @click.option('--tail', default=100, help='Number of log lines to show')
 def logs(service, tail):
     """Show Docker container logs."""
-    manager = DockerManager(PROJECT_ROOT)
+    platform, _ = detect_gpu_platform()
+    compose_file = _get_compose_file(platform)
+    manager = DockerManager(PROJECT_ROOT, compose_file=str(compose_file))
     success, output = manager.logs(service=service, tail=tail)
 
     if success:

@@ -1,29 +1,44 @@
-# Intel Arc GPU override - use with: docker compose -f docker-compose.yml -f docker-compose.intel.yml up
-# Based on: docker run --shm-size 10g --net=host --ipc=host --privileged --device /dev/dri:/dev/dri
 services:
   vllm-server:
+    image: ${VLLM_IMAGE:-vllm-rocm71:latest}
+    container_name: vllm-server
     devices:
       - /dev/dri:/dev/dri
-    group_add: []
     volumes:
       - /dev/dri/by-path:/dev/dri/by-path
+      - ~/.cache/huggingface:/root/.cache/huggingface
+      - ./scripts:/root/scripts
+      - ./output:/root/output
     environment:
+      - HF_HOME=/root/.cache/huggingface
       - PYTORCH_TUNABLEOP_ENABLED=0
       - VLLM_USE_TRITON_FLASH_ATTN=
+      - OMP_NUM_THREADS=32
+    ipc: host
     privileged: true
     network_mode: host
-    ports: []
+    stdin_open: true
+    tty: true
+    command: /bin/bash
 
   vllm-bench-client:
+    image: ${VLLM_IMAGE:-vllm-rocm71:latest}
+    container_name: vllm-bench-client
     devices:
       - /dev/dri:/dev/dri
-    group_add: []
     volumes:
       - /dev/dri/by-path:/dev/dri/by-path
+      - ~/.cache/huggingface:/root/.cache/huggingface
+      - ./scripts:/root/scripts
+      - ./output:/root/output
     environment:
       - VLLM_SERVER_URL=http://localhost:8000
+      - HF_HOME=/root/.cache/huggingface
       - PYTORCH_TUNABLEOP_ENABLED=0
       - VLLM_USE_TRITON_FLASH_ATTN=
+    ipc: host
     privileged: true
     network_mode: host
-    ports: []
+    stdin_open: true
+    tty: true
+    command: /bin/bash
