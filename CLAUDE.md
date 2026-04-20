@@ -1,6 +1,8 @@
-# vLLM Benchmark Tool
+# vLLM Benchmark Tool (CUDA branch)
 
-Unified benchmarking and visualization platform for vLLM across AMD (ROCm) and NVIDIA (CUDA) GPUs.
+Benchmarking and visualization platform for vLLM on NVIDIA (CUDA) GPUs.
+This is the `cuda` branch — AMD/ROCm and Intel Arc code has been removed. The Web UI still parses
+output folders produced on any runtime (rocm*, cuda*, oneapi*) so existing results remain viewable.
 Python 3.10+ | CLI via Click | Web dashboard via Dash/Plotly | Docker-based execution
 
 ## Commands
@@ -16,12 +18,14 @@ Python 3.10+ | CLI via Click | Web dashboard via Dash/Plotly | Docker-based exec
 ## Architecture
 
 - Entry point: `main.py` (Click CLI with command groups: check, docker, run, webui)
-- GPU detection: `checks/gpu_detect.py` - auto-detects AMD vs NVIDIA, do not hardcode platform assumptions
-- Docker: two-container model (vllm-server + vllm-bench-client) with compose override for NVIDIA (`docker-compose.nvidia.yml`)
+- GPU detection: `checks/gpu_detect.py` — NVIDIA-only presence check via `nvidia-smi`
+- Docker: two-container model (vllm-server + vllm-bench-client) driven by a single `docker-compose.yml` (NVIDIA runtime)
 - Benchmarks: always use `BenchmarkRunner` class, never inline benchmark logic in main.py
-- Web UI: Dash app in `webui/`, chart configs in `webui/config.py`, data loading in `webui/data_loader.py`
+- Web UI: Dash app in `webui/`, chart configs in `webui/config.py`, data loading in `webui/data_loader.py`.
+  The Web UI is intentionally runtime-agnostic — it parses `rocm*`, `cuda*`, and `oneapi*` folder names
+  so results from AMD/Intel runs (produced on other branches) remain viewable here.
 - Output folder naming: `{gpu_count}x{gpu_model}_{pcie}_{model}_{runtime}{ver}_{range}_TP{tp}`
-  - Example: `2xR9700_x16_llama-3.1-8b_rocm7.2_1-200_TP2`
+  - Example: `2xpro4500_x16_llama-3.1-8b_cuda13.0_1-200_TP2`
   - Parsed by regex in `webui/data_loader.py:extract_metadata_from_folder_name()`. Do not change the naming convention without updating the parser.
 
 ## Conventions
@@ -45,19 +49,17 @@ Python 3.10+ | CLI via Click | Web dashboard via Dash/Plotly | Docker-based exec
 
 ## Prerequisites
 
-- **OS**: Linux with GPU kernel module support (amdgpu or nvidia)
+- **OS**: Linux with `nvidia` kernel module loaded
 - **Python**: 3.10+
 - **Docker**: v20.10+ with `docker compose` v2 (or docker-compose v1)
-- **AMD**: ROCm 7.0+, `/opt/rocm` installed, `/dev/kfd` and `/dev/dri` devices, `amdgpu` kernel module loaded
-- **NVIDIA**: nvidia-smi available, NVIDIA Container Toolkit installed
-- **Default Docker image**: `vllm-rocm71:latest` (override with `VLLM_IMAGE` env var)
+- **NVIDIA**: `nvidia-smi` available, NVIDIA Container Toolkit installed
+- **Default Docker image**: `vllm/vllm-openai:latest` (override with `VLLM_IMAGE` env var)
 
 ## Config Locations
 
-- `docker-compose.yml` — main compose config (AMD/ROCm devices, volumes, network)
-- `docker-compose.nvidia.yml` — NVIDIA override (replaces AMD devices with nvidia driver)
+- `docker-compose.yml` — single compose config (NVIDIA runtime, volumes, network)
 - `.claude/settings.local.json` — Claude Code tool permissions
-- No `.env` file — config is in compose files or passed via CLI
+- No `.env` file — config is in the compose file or passed via CLI
 - HuggingFace cache mounted from `~/.cache/huggingface`
 
 ## Workflows
@@ -69,7 +71,7 @@ Python 3.10+ | CLI via Click | Web dashboard via Dash/Plotly | Docker-based exec
    ```
    python3 main.py run benchmark \
      --model meta-llama/Llama-3.1-8B \
-     --experiment-name 1xR9700_x16_llama-3.1-8b_rocm7.2_1-200_TP1 \
+     --experiment-name 1xRTX4090_x16_llama-3.1-8b_cuda12.4_1-200_TP1 \
      --gpu-count 1 --gpu-ids "0" \
      --input-len 1024 --output-len 128 \
      --num-prompts 200 --num-prompts-start 1

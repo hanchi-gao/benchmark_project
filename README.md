@@ -1,28 +1,31 @@
-# vLLM Benchmark Tool
+# vLLM Benchmark Tool (CUDA branch)
 
-A unified benchmarking and visualization tool for [vLLM](https://github.com/vllm-project/vllm) on GPUs.
+A benchmarking and visualization tool for [vLLM](https://github.com/vllm-project/vllm) on NVIDIA GPUs.
+
+> This branch is dedicated to the **CUDA** testing environment. AMD/ROCm and Intel Arc support has been
+> removed from the benchmarking paths. The Web UI is still runtime-agnostic — it can render output folders
+> produced on AMD/ROCm or Intel runtimes (e.g. from another branch or another machine).
 
 ## Features
 
 - **Docker-based**: Run vLLM in containers with interactive image selection
 - **Interactive CLI**: Simple commands for complete benchmarking workflow
 - **Real-time Output**: Stream benchmark progress as it runs
-- **Web Dashboard**: Visualize and compare benchmark results across experiments
+- **Web Dashboard**: Visualize and compare benchmark results across experiments (multi-runtime)
 - **Config Recording**: Automatically saves GPU info, vLLM version, and test parameters
 
 ## Installation
 
 ### Prerequisites
 
-- **GPU** (one of):
-  - AMD GPU with [ROCm](https://rocm.docs.amd.com/) support
-  - NVIDIA GPU with [CUDA](https://developer.nvidia.com/cuda-toolkit) drivers and [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
-  - Intel Arc GPU with `xe` or `i915` kernel driver
-- Docker with GPU access configured
+- NVIDIA GPU with [CUDA](https://developer.nvidia.com/cuda-toolkit) drivers and
+  [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+- Docker v20.10+ with `docker compose` v2 and GPU access configured
 - Python 3.10+
 - [uv](https://github.com/astral-sh/uv) (recommended) or pip
 
-> **No GPU?** You can still use the Web UI to view existing benchmark results.
+> **No GPU?** You can still use the Web UI to view existing benchmark results (including results
+> recorded on AMD/ROCm or Intel runtimes).
 
 ### Setup
 
@@ -81,15 +84,14 @@ python3 main.py docker stop
 python3 main.py check [--verbose]
 ```
 
-The check command auto-detects your GPU platform and runs the appropriate checks:
+The check command verifies the NVIDIA driver, GPU visibility, and Docker readiness:
 
-| Platform | Checks performed |
-|----------|-----------------|
-| AMD | AMD kernel module (`amdgpu`), `/dev/kfd` device, ROCm installation, GPU count |
-| NVIDIA | `nvidia-smi` driver version, GPU detection and count |
-| Intel Arc | `xe`/`i915` kernel module, `/dev/dri/renderD*` devices, GPU count |
+| Checks performed |
+|------------------|
+| `nvidia-smi` driver version, GPU detection and count |
+| Docker daemon + `docker compose` availability, vLLM image presence |
 
-Example output for NVIDIA:
+Example output:
 ```
 GPU Platform: NVIDIA GPU detected
 
@@ -99,22 +101,6 @@ GPU Platform: NVIDIA GPU detected
    GPU Detection: OK
       Detected GPUs: 1
         - NVIDIA GeForce RTX 4090, 24564 MiB
-   GPU Count: 1
-
-2. Docker Check
-   ...
-```
-
-Example output for Intel:
-```
-GPU Platform: Intel GPU detected
-
-1. Intel GPU Check
-   Intel GPU Driver: OK
-      Intel Xe GPU driver loaded
-   DRI Render Devices: OK
-      Detected 1 DRI render device(s)
-        - /dev/dri/renderD128
    GPU Count: 1
 
 2. Docker Check
@@ -162,18 +148,13 @@ Access from other machines on the same LAN: `http://<YOUR_IP>:8050`
 vllm-benchmark/
 ├── main.py                      # Main CLI orchestrator
 ├── pyproject.toml               # Dependencies
-├── docker-compose.yml           # Docker Compose configuration (AMD default)
-├── docker-compose.nvidia.yml    # NVIDIA GPU override
-├── docker-compose.intel.yml     # Intel Arc GPU override
+├── docker-compose.yml           # Docker Compose configuration (NVIDIA runtime)
 ├── README.md
 │
 ├── checks/                      # System validation
 │   ├── __init__.py
-│   ├── gpu_detect.py           # GPU platform auto-detection
-│   ├── amd_driver.py           # AMD driver checks
+│   ├── gpu_detect.py           # NVIDIA GPU presence check
 │   ├── nvidia_check.py         # NVIDIA driver checks
-│   ├── intel_check.py          # Intel Arc driver checks
-│   ├── rocm_check.py           # ROCm installation checks
 │   └── docker_check.py         # Docker readiness checks
 │
 ├── docker/                      # Docker management
@@ -233,8 +214,8 @@ output/
     "num_prompts_end": 200
   },
   "environment": {
-    "vllm_version": "0.13.0+rocm711",
-    "rocm_version": "7.1.1"
+    "vllm_version": "0.13.0",
+    "cuda_version": "release 12.4"
   }
 }
 ```
@@ -243,10 +224,12 @@ output/
 
 ### Filters
 
-- **Software Version**: Filter by vLLM/ROCm version
+- **Software Version**: Filter by runtime version parsed from the folder name (`rocm*`, `cuda*`, `oneapi*`)
 - **TP Size**: Tensor parallelism size
 - **GPUs**: Number of GPUs
 - **Model**: Model name
+
+The Web UI can render output folders produced on AMD/ROCm or Intel runtimes as well as CUDA.
 
 ### Chart Types
 
@@ -270,18 +253,11 @@ VLLM_IMAGE=my-custom-image:v1 docker compose up -d
 python3 main.py docker start --image my-custom-image:v1
 ```
 
-The tool auto-detects your GPU platform and automatically applies the appropriate compose override:
+The single `docker-compose.yml` targets the NVIDIA Container Toolkit runtime
+(`deploy.resources.reservations.devices: [driver: nvidia]`).
 
-| Platform | Compose override | Notes |
-|----------|-----------------|-------|
-| AMD | *(none — base config)* | `/dev/kfd` + `/dev/dri` devices |
-| NVIDIA | `docker-compose.nvidia.yml` | NVIDIA Container Toolkit runtime |
-| Intel Arc | `docker-compose.intel.yml` | `--privileged`, `--net=host`, `/dev/dri` + `/dev/dri/by-path` |
-
-Default images by platform:
-- AMD: `vllm-rocm71:latest`
-- NVIDIA: select interactively or specify with `--image`
-- Intel Arc: `intel/llm-scaler-vllm:0.14.0-b8`
+Default image: `vllm/vllm-openai:latest`. Override interactively at `docker start`
+or explicitly with `--image`.
 
 ## Benchmark Results Format
 
