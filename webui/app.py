@@ -149,10 +149,10 @@ def create_app(output_dir: str = OUTPUT_DIR) -> dash.Dash:
             html.H3("Filters"),
             html.Div([
                 html.Div([
-                    html.Label("Software Version"),
+                    html.Label("Runtime Version"),
                     dcc.Dropdown(
-                        id='rocm-version-filter',
-                        options=[{'label': str(v), 'value': v} for v in metadata_values.get('rocm_version', [])],
+                        id='runtime-version-filter',
+                        options=[{'label': str(v), 'value': v} for v in metadata_values.get('runtime_version', [])],
                         placeholder="All Versions",
                         clearable=True,
                         style={'width': '100%'}
@@ -255,20 +255,20 @@ def create_app(output_dir: str = OUTPUT_DIR) -> dash.Dash:
     # Callback to filter available folders based on metadata
     @app.callback(
         Output('folder-checklist', 'options'),
-        [Input('rocm-version-filter', 'value'),
+        [Input('runtime-version-filter', 'value'),
          Input('tp-filter', 'value'),
          Input('gpu-count-filter', 'value'),
          Input('model-filter', 'value'),
          Input('output-dir-store', 'data')]
     )
-    def update_folder_options(rocm_version, tp_size, gpu_count, model_name, out_dir):
+    def update_folder_options(runtime_version, tp_size, gpu_count, model_name, out_dir):
         all_folders = get_experiment_folders(out_dir)
         filtered = filter_folders_by_metadata(
             all_folders,
-            rocm_version=rocm_version,
+            runtime_version=runtime_version,
             tensor_parallel_size=tp_size,
             gpu_count=gpu_count,
-            model_name=model_name
+            model_name=model_name,
         )
         return [{'label': folder, 'value': folder} for folder in filtered]
 

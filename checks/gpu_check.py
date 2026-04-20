@@ -1,20 +1,21 @@
-"""Intel GPU (Arc/Xe) validation module."""
+"""Intel GPU (Arc / Xe) validation module."""
 
 import subprocess
 from pathlib import Path
 from typing import Tuple
 
 
-def check_intel_driver() -> Tuple[bool, str]:
-    """Check if Intel GPU kernel module is loaded."""
+def check_gpu_driver() -> Tuple[bool, str]:
+    """Check whether the Intel GPU kernel module is loaded."""
     try:
         result = subprocess.run(
             ["lsmod"], capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0:
-            if "xe" in result.stdout.split():
+            modules = result.stdout.split()
+            if "xe" in modules:
                 return True, "Intel Xe GPU driver loaded"
-            if "i915" in result.stdout.split():
+            if "i915" in modules:
                 return True, "Intel i915 GPU driver loaded"
         return False, "Intel GPU kernel module (xe or i915) not found in lsmod"
     except FileNotFoundError:
@@ -25,8 +26,8 @@ def check_intel_driver() -> Tuple[bool, str]:
         return False, f"Error checking Intel driver: {e}"
 
 
-def check_intel_dri_devices() -> Tuple[bool, list]:
-    """Check if Intel DRI render devices are present."""
+def check_dri_devices() -> Tuple[bool, list]:
+    """List /dev/dri/renderD* devices."""
     try:
         render_devices = sorted(Path("/dev/dri").glob("renderD*"))
         if render_devices:
@@ -36,31 +37,25 @@ def check_intel_dri_devices() -> Tuple[bool, list]:
         return False, []
 
 
-def get_intel_gpu_count() -> int:
-    """Get number of Intel GPU render nodes."""
+def get_gpu_count() -> int:
+    """Count /dev/dri/renderD* nodes."""
     try:
-        render_devices = list(Path("/dev/dri").glob("renderD*"))
-        return len(render_devices)
+        return len(list(Path("/dev/dri").glob("renderD*")))
     except Exception:
         return 0
 
 
-def check_intel() -> dict:
-    """
-    Run all Intel GPU checks.
-
-    Returns:
-        dict with check results
-    """
+def check_gpu() -> dict:
+    """Run all Intel GPU checks and return a structured result."""
     checks = []
     all_passed = True
 
-    passed, message = check_intel_driver()
+    passed, message = check_gpu_driver()
     checks.append({"name": "Intel GPU Driver", "passed": passed, "message": message})
     if not passed:
         all_passed = False
 
-    passed, devices = check_intel_dri_devices()
+    passed, devices = check_dri_devices()
     if passed:
         message = f"Detected {len(devices)} DRI render device(s)"
         for dev in devices[:4]:
@@ -73,10 +68,8 @@ def check_intel() -> dict:
     if not passed:
         all_passed = False
 
-    gpu_count = get_intel_gpu_count()
-
     return {
         "success": all_passed,
         "checks": checks,
-        "gpu_count": gpu_count,
+        "gpu_count": get_gpu_count(),
     }

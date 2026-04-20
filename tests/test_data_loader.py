@@ -15,53 +15,34 @@ from webui.data_loader import (
 class TestExtractMetadata:
     """Tests for folder name metadata extraction."""
 
-    def test_standard_amd_folder(self):
-        meta = extract_metadata_from_folder_name("1xR9700_x16_llama-3.1-8b_rocm7.0_1-200_TP1")
+    def test_standard_intel_folder(self):
+        meta = extract_metadata_from_folder_name("1xArcB580_x16_llama-3.1-8b_xpu0.14_1-200_TP1")
         assert meta["gpu_count"] == 1
         assert meta["pcie_config"] == "x16"
         assert meta["model_name"] == "llama-3.1-8b"
-        assert meta["rocm_version"] == "7.0"
+        assert meta["runtime_version"] == "XPU 0.14"
         assert meta["tensor_parallel_size"] == 1
 
-    def test_multi_gpu_folder(self):
-        meta = extract_metadata_from_folder_name("4xR9700_x8_llama-3.1-8b_rocm7.2_1-200_TP4")
+    def test_multi_gpu_intel_folder(self):
+        meta = extract_metadata_from_folder_name("4xArcB580_x8_llama-3.1-8b_xpu0.14_1-200_TP4")
         assert meta["gpu_count"] == 4
         assert meta["tensor_parallel_size"] == 4
-        assert meta["rocm_version"] == "7.2"
+        assert meta["runtime_version"] == "XPU 0.14"
 
-    def test_cuda_folder(self):
-        meta = extract_metadata_from_folder_name("2xpro4500_x16_llama-3.1-8b_cuda13.0_1-200_TP2")
-        assert meta["gpu_count"] == 2
-        assert meta["rocm_version"] == "CUDA 13.0"
-        assert meta["tensor_parallel_size"] == 2
+    def test_ipex_tag(self):
+        meta = extract_metadata_from_folder_name("1xArcB580_x16_qwen3-0.6b_ipex2.10_1-2_TP1")
+        assert meta["runtime_version"] == "XPU 2.10"
+        assert meta["model_name"] == "qwen3-0.6b"
 
-    def test_nvidia_comparison_folder(self):
-        meta = extract_metadata_from_folder_name("8xH100-SXM_gpt-oss-120b_1-32768")
-        assert meta["gpu_count"] == 8
-        assert meta["model_name"] == "gpt-oss-120b"
-
-    def test_qwen_model(self):
-        meta = extract_metadata_from_folder_name("4xMI350_qwen3-14b_rocm7.2_1-200_TP4")
-        assert meta["model_name"] == "qwen3-14b"
-        assert meta["gpu_count"] == 4
-
-    def test_intel_arc_folder(self):
-        meta = extract_metadata_from_folder_name("1xArcProB60_x16_llama-3.1-8b_oneapi2024_1-200_TP1")
-        assert meta["gpu_count"] == 1
-        assert meta["pcie_config"] == "x16"
-        assert meta["model_name"] == "llama-3.1-8b"
-        assert meta["tensor_parallel_size"] == 1
-
-    def test_intel_arc_multi_gpu(self):
-        meta = extract_metadata_from_folder_name("2xArcProB60_x8_llama-3.1-70b_oneapi2024_1-200_TP2")
-        assert meta["gpu_count"] == 2
-        assert meta["tensor_parallel_size"] == 2
-        assert meta["model_name"] == "llama-3.1-70b"
+    def test_oneapi_tag(self):
+        meta = extract_metadata_from_folder_name("1xArcB580_x16_llama-3.1-8b_oneapi2025.3_1-200_TP1")
+        assert meta["runtime_version"] == "XPU 2025.3"
 
     def test_no_metadata_folder(self):
         meta = extract_metadata_from_folder_name("random_folder_name")
         assert meta["gpu_count"] is None
         assert meta["model_name"] is None
+        assert meta["runtime_version"] is None
 
 
 class TestGetExperimentFolders:
@@ -71,7 +52,6 @@ class TestGetExperimentFolders:
         with tempfile.TemporaryDirectory() as tmpdir:
             Path(tmpdir, "b_experiment").mkdir()
             Path(tmpdir, "a_experiment").mkdir()
-            # Create a file (should be excluded)
             Path(tmpdir, "not_a_folder.json").write_text("{}")
 
             folders = get_experiment_folders(tmpdir)
@@ -129,19 +109,19 @@ class TestLoadExperimentData:
 class TestFilterFolders:
     """Tests for metadata-based folder filtering."""
 
-    def test_filter_by_rocm_version(self):
+    def test_filter_by_runtime_version(self):
         folders = [
-            "1xR9700_x16_llama-3.1-8b_rocm7.0_1-200_TP1",
-            "1xR9700_x16_llama-3.1-8b_rocm7.2_1-200_TP1",
+            "1xArcB580_x16_llama-3.1-8b_xpu0.14_1-200_TP1",
+            "1xArcB580_x16_llama-3.1-8b_xpu0.15_1-200_TP1",
         ]
-        filtered = filter_folders_by_metadata(folders, rocm_version="7.0")
+        filtered = filter_folders_by_metadata(folders, runtime_version="XPU 0.14")
         assert len(filtered) == 1
-        assert "rocm7.0" in filtered[0]
+        assert "xpu0.14" in filtered[0]
 
     def test_filter_by_gpu_count(self):
         folders = [
-            "1xR9700_x16_llama-3.1-8b_rocm7.0_1-200_TP1",
-            "4xR9700_x16_llama-3.1-8b_rocm7.0_1-200_TP4",
+            "1xArcB580_x16_llama-3.1-8b_xpu0.14_1-200_TP1",
+            "4xArcB580_x16_llama-3.1-8b_xpu0.14_1-200_TP4",
         ]
         filtered = filter_folders_by_metadata(folders, gpu_count=4)
         assert len(filtered) == 1

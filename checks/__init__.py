@@ -1,18 +1,6 @@
-"""System validation checks for vLLM Benchmark."""
+"""System validation checks for vLLM Benchmark (Intel GPU)."""
 
-from .amd_driver import check_amd_driver
 from .docker_check import check_docker
-from .gpu_detect import GpuPlatform, detect_gpu_platform
-from .intel_check import check_intel
-from .nvidia_check import check_nvidia
-from .rocm_check import check_rocm
+from .gpu_check import check_gpu
 
-__all__ = [
-    "check_amd_driver",
-    "check_rocm",
-    "check_docker",
-    "detect_gpu_platform",
-    "GpuPlatform",
-    "check_nvidia",
-    "check_intel",
-]
+__all__ = ["check_gpu", "check_docker"]

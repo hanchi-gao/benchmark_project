@@ -76,7 +76,7 @@ OUTPUT_DIR = "output"
 
 # Metadata fields for filtering
 METADATA_FIELDS = {
-    "rocm_version": "ROCm Version",
+    "runtime_version": "Runtime Version",
     "tensor_parallel_size": "Tensor Parallelism",
     "gpu_count": "GPU Count",
     "model_id": "Model",

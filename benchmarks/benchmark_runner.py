@@ -44,13 +44,8 @@ class BenchmarkRunner:
         self.experiment_dir = self.output_dir / config.experiment_name
 
     def setup_environment(self) -> dict:
-        """Set up environment variables for GPU selection."""
+        """Set up environment variables for Intel GPU selection."""
         env = os.environ.copy()
-        # AMD ROCm GPU selection
-        env["HIP_VISIBLE_DEVICES"] = self.config.gpu_ids
-        # Also set CUDA_VISIBLE_DEVICES for compatibility
-        env["CUDA_VISIBLE_DEVICES"] = self.config.gpu_ids
-        # Intel oneAPI GPU selection
         env["ONEAPI_DEVICE_SELECTOR"] = f"level_zero:{self.config.gpu_ids}"
         return env
 
@@ -246,8 +241,8 @@ class BenchmarkRunner:
 
 set -e
 
-# GPU Configuration
-export HIP_VISIBLE_DEVICES="{self.config.gpu_ids}"
+# Intel GPU selection (oneAPI Level Zero)
+export ONEAPI_DEVICE_SELECTOR="level_zero:{self.config.gpu_ids}"
 
 # Results directory
 RESULTS_DIR="/root/output/{self.config.experiment_name}"

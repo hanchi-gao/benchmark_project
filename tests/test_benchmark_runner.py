@@ -48,6 +48,7 @@ class TestBenchmarkRunner:
         config = BenchmarkConfig(
             model="test-model",
             experiment_name="test_exp",
+            gpu_ids="0,1",
             num_prompts_start=1,
             num_prompts_end=10,
         )
@@ -56,6 +57,16 @@ class TestBenchmarkRunner:
         assert "#!/bin/bash" in script
         assert "test-model" in script
         assert "test_exp" in script
+        assert 'ONEAPI_DEVICE_SELECTOR="level_zero:0,1"' in script
+        assert "HIP_VISIBLE_DEVICES" not in script
+        assert "CUDA_VISIBLE_DEVICES" not in script
+
+    def test_setup_environment_sets_oneapi_only(self):
+        config = BenchmarkConfig(gpu_ids="0,2")
+        runner = BenchmarkRunner(config)
+        env = runner.setup_environment()
+        assert env["ONEAPI_DEVICE_SELECTOR"] == "level_zero:0,2"
+        assert "HIP_VISIBLE_DEVICES" not in env
 
     def test_get_max_model_len_default(self):
         config = BenchmarkConfig(input_len=1024, output_len=128)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""vLLM Benchmark Tool - Main CLI orchestrator."""
+"""vLLM Benchmark Tool - Intel GPU CLI orchestrator."""
 
 import json
 import sys
@@ -11,53 +11,34 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-# Add project root to path for imports
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from benchmarks.benchmark_runner import BenchmarkConfig, BenchmarkRunner  # noqa: E402
-from checks import (  # noqa: E402
-    GpuPlatform,
-    check_amd_driver,
-    check_docker,
-    check_intel,
-    check_nvidia,
-    check_rocm,
-    detect_gpu_platform,
-)
+from checks import check_docker, check_gpu  # noqa: E402
 from docker.manager import DockerManager  # noqa: E402
 
 console = Console()
 
-DEFAULT_IMAGE = "vllm-rocm71:latest"
-
-
-def _get_compose_file(platform: GpuPlatform) -> Path:
-    """Return the standalone compose file for the detected GPU platform."""
-    match platform:
-        case GpuPlatform.NVIDIA:
-            return PROJECT_ROOT / "docker-compose.nvidia.yml"
-        case GpuPlatform.INTEL:
-            return PROJECT_ROOT / "docker-compose.intel.yml"
-        case _:  # AMD or unknown -> default AMD
-            return PROJECT_ROOT / "docker-compose.yml"
+DEFAULT_IMAGE = "intel/llm-scaler-vllm:0.14.0-b8.1"
+COMPOSE_FILE = PROJECT_ROOT / "docker-compose.yml"
 
 
 @click.group()
 @click.version_option(version="1.0.0", prog_name="vllm-bench")
 def cli():
-    """vLLM Benchmark Tool - Unified benchmarking for vLLM on GPUs."""
+    """vLLM Benchmark Tool — Intel GPU (Arc / Xe) benchmarking."""
     pass
 
 
 # =============================================================================
-# CHECK COMMANDS
+# CHECK COMMAND
 # =============================================================================
 
 @cli.command()
 @click.option('--verbose', '-v', is_flag=True, help='Show detailed output')
 def check(verbose):
-    """Run all system checks (GPU driver, runtime, Docker)."""
+    """Run system checks (Intel GPU driver + Docker)."""
     console.print(Panel.fit(
         "[bold blue]vLLM Benchmark - System Check[/bold blue]",
         border_style="blue"
@@ -65,68 +46,19 @@ def check(verbose):
 
     all_passed = True
 
-    # GPU Platform Detection
-    platform, platform_msg = detect_gpu_platform()
-    console.print(f"\n[bold]GPU Platform:[/bold] {platform_msg}")
+    console.print("\n[bold]1. Intel GPU Check[/bold]")
+    gpu_result = check_gpu()
+    for check_item in gpu_result["checks"]:
+        status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
+        console.print(f"   {check_item['name']}: {status}")
+        if verbose or not check_item["passed"]:
+            console.print(f"      {check_item['message']}")
+    if gpu_result.get("gpu_count", 0) > 0:
+        console.print(f"   GPU Count: [cyan]{gpu_result['gpu_count']}[/cyan]")
+    if not gpu_result["success"]:
+        all_passed = False
 
-    if platform == GpuPlatform.AMD:
-        # AMD Driver Check
-        console.print("\n[bold]1. AMD Driver Check[/bold]")
-        driver_result = check_amd_driver()
-        for check_item in driver_result["checks"]:
-            status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
-            console.print(f"   {check_item['name']}: {status}")
-            if verbose or not check_item["passed"]:
-                console.print(f"      {check_item['message']}")
-        if not driver_result["success"]:
-            all_passed = False
-
-        # ROCm Check
-        console.print("\n[bold]2. ROCm Installation Check[/bold]")
-        rocm_result = check_rocm()
-        for check_item in rocm_result["checks"]:
-            status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
-            console.print(f"   {check_item['name']}: {status}")
-            if verbose or not check_item["passed"]:
-                console.print(f"      {check_item['message']}")
-        if rocm_result.get("gpu_count", 0) > 0:
-            console.print(f"   GPU Count: [cyan]{rocm_result['gpu_count']}[/cyan]")
-        if not rocm_result["success"]:
-            all_passed = False
-
-    elif platform == GpuPlatform.NVIDIA:
-        console.print("\n[bold]1. NVIDIA GPU Check[/bold]")
-        nvidia_result = check_nvidia()
-        for check_item in nvidia_result["checks"]:
-            status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
-            console.print(f"   {check_item['name']}: {status}")
-            if verbose or not check_item["passed"]:
-                console.print(f"      {check_item['message']}")
-        if nvidia_result.get("gpu_count", 0) > 0:
-            console.print(f"   GPU Count: [cyan]{nvidia_result['gpu_count']}[/cyan]")
-        if not nvidia_result["success"]:
-            all_passed = False
-
-    elif platform == GpuPlatform.INTEL:
-        console.print("\n[bold]1. Intel GPU Check[/bold]")
-        intel_result = check_intel()
-        for check_item in intel_result["checks"]:
-            status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
-            console.print(f"   {check_item['name']}: {status}")
-            if verbose or not check_item["passed"]:
-                console.print(f"      {check_item['message']}")
-        if intel_result.get("gpu_count", 0) > 0:
-            console.print(f"   GPU Count: [cyan]{intel_result['gpu_count']}[/cyan]")
-        if not intel_result["success"]:
-            all_passed = False
-
-    else:
-        console.print("\n[yellow]No GPU detected. Benchmark execution requires a GPU,[/yellow]")
-        console.print("[yellow]but the Web UI can still be used to view existing results.[/yellow]")
-
-    # Docker Check (always run)
-    step_num = 3 if platform == GpuPlatform.AMD else 2 if platform in (GpuPlatform.NVIDIA, GpuPlatform.INTEL) else 1
-    console.print(f"\n[bold]{step_num}. Docker Check[/bold]")
+    console.print("\n[bold]2. Docker Check[/bold]")
     docker_result = check_docker()
     for check_item in docker_result["checks"]:
         status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
@@ -140,7 +72,6 @@ def check(verbose):
     if not docker_result["success"]:
         all_passed = False
 
-    # Summary
     console.print()
     if all_passed:
         console.print(Panel.fit(
@@ -161,7 +92,7 @@ def check(verbose):
 
 @cli.group()
 def docker():
-    """Docker container management commands."""
+    """Docker container management."""
     pass
 
 
@@ -169,59 +100,55 @@ def docker():
 @click.option('--image', default=None, help='Docker image to use (interactive if not specified)')
 def start(image):
     """Start Docker containers."""
-    manager = DockerManager(PROJECT_ROOT)
+    manager = DockerManager(PROJECT_ROOT, compose_file=str(COMPOSE_FILE))
 
-    # Interactive image selection if not specified
     if image is None:
         images = manager.list_available_images()
 
         if not images:
-            console.print("[red]No vLLM/ROCm Docker images found.[/red]")
-            console.print("Pull an image first: [green]docker pull <image>[/green]")
-            sys.exit(1)
+            console.print(
+                f"[yellow]No local vLLM images found. Falling back to default:[/yellow] {DEFAULT_IMAGE}"
+            )
+            console.print(
+                "[dim]Docker will pull it on first run. Override with --image.[/dim]"
+            )
+            image = DEFAULT_IMAGE
+        else:
+            console.print("\n[bold]Available vLLM Images:[/bold]")
+            default_idx = 1
+            for i, img in enumerate(images, 1):
+                marker = ""
+                if img['name'] == DEFAULT_IMAGE:
+                    marker = " [green](default)[/green]"
+                    default_idx = i
+                console.print(f"  {i}. {img['name']} ({img['size']}, {img['created']}){marker}")
 
-        console.print("\n[bold]Available vLLM Images:[/bold]")
-        for i, img in enumerate(images, 1):
-            console.print(f"  {i}. {img['name']} ({img['size']}, {img['created']})")
-
-        console.print()
-        while True:
-            try:
-                choice = click.prompt(
-                    f"Select image [1-{len(images)}]",
-                    type=int,
-                    default=1
-                )
-                if 1 <= choice <= len(images):
-                    image = images[choice - 1]['name']
-                    break
-                console.print(f"[red]Please enter a number between 1 and {len(images)}[/red]")
-            except (ValueError, click.Abort):
-                console.print("[yellow]Cancelled[/yellow]")
-                sys.exit(0)
+            console.print()
+            while True:
+                try:
+                    choice = click.prompt(
+                        f"Select image [1-{len(images)}]",
+                        type=int,
+                        default=default_idx,
+                    )
+                    if 1 <= choice <= len(images):
+                        image = images[choice - 1]['name']
+                        break
+                    console.print(f"[red]Please enter a number between 1 and {len(images)}[/red]")
+                except (ValueError, click.Abort):
+                    console.print("[yellow]Cancelled[/yellow]")
+                    sys.exit(0)
 
     console.print(f"\n[bold]Starting Docker containers with image:[/bold] {image}")
 
-    # Auto-detect GPU platform and select standalone compose file
-    platform, _ = detect_gpu_platform()
-    compose_file = _get_compose_file(platform)
-    platform_label = {
-        GpuPlatform.NVIDIA: "NVIDIA",
-        GpuPlatform.INTEL: "Intel",
-        GpuPlatform.AMD: "AMD",
-    }.get(platform, "AMD")
-    console.print(f"[dim]Detected {platform_label} GPU - using {compose_file.name}[/dim]")
-
-    manager = DockerManager(PROJECT_ROOT, image=image, compose_file=str(compose_file))
+    manager = DockerManager(PROJECT_ROOT, image=image, compose_file=str(COMPOSE_FILE))
     success, message = manager.start()
 
     if success:
         console.print("[green]Containers started successfully[/green]")
-        # Show status
-        _, status = manager.status()
-        console.print(status)
+        _, status_output = manager.status()
+        console.print(status_output)
 
-        # Print next steps instructions
         console.print(Panel(
             "[bold]Containers started![/bold]\n\n"
             "[cyan]Step 1:[/cyan] Open another terminal and run:\n"
@@ -229,12 +156,12 @@ def start(image):
             "[cyan]Step 2:[/cyan] Inside the container, start vLLM server:\n"
             "  [green]vllm serve <model> --tensor-parallel-size <N> --gpu-memory-utilization 0.9[/green]\n\n"
             "  [dim]Example:[/dim]\n"
-            "  vllm serve meta-llama/Llama-3.1-8B --tensor-parallel-size 2 --gpu-memory-utilization 0.9\n\n"
+            "  vllm serve Qwen/Qwen3-0.6B --tensor-parallel-size 1 --gpu-memory-utilization 0.9\n\n"
             "[cyan]Step 3:[/cyan] Wait until you see [yellow]\"Uvicorn running on http://0.0.0.0:8000\"[/yellow]\n\n"
             "[cyan]Step 4:[/cyan] Back in this terminal, run the benchmark:\n"
             "  [green]python3 main.py run benchmark --model <model> --experiment-name <name>[/green]",
             title="[bold yellow]Next Steps[/bold yellow]",
-            border_style="yellow"
+            border_style="yellow",
         ))
     else:
         console.print(f"[red]Failed to start containers: {message}[/red]")
@@ -247,9 +174,7 @@ def stop(volumes):
     """Stop and remove Docker containers."""
     console.print("[bold]Stopping and removing Docker containers...[/bold]")
 
-    platform, _ = detect_gpu_platform()
-    compose_file = _get_compose_file(platform)
-    manager = DockerManager(PROJECT_ROOT, compose_file=str(compose_file))
+    manager = DockerManager(PROJECT_ROOT, compose_file=str(COMPOSE_FILE))
     success, message = manager.down(volumes=volumes)
 
     if success:
@@ -265,9 +190,7 @@ def reset():
     console.print("[bold yellow]Resetting Docker environment...[/bold yellow]")
     console.print("This will remove ALL vllm-related containers.\n")
 
-    platform, _ = detect_gpu_platform()
-    compose_file = _get_compose_file(platform)
-    manager = DockerManager(PROJECT_ROOT, compose_file=str(compose_file))
+    manager = DockerManager(PROJECT_ROOT, compose_file=str(COMPOSE_FILE))
     success, message = manager.reset()
 
     console.print(message)
@@ -280,9 +203,7 @@ def reset():
 @docker.command()
 def status():
     """Show Docker container status."""
-    platform, _ = detect_gpu_platform()
-    compose_file = _get_compose_file(platform)
-    manager = DockerManager(PROJECT_ROOT, compose_file=str(compose_file))
+    manager = DockerManager(PROJECT_ROOT, compose_file=str(COMPOSE_FILE))
     success, output = manager.status()
 
     if success:
@@ -296,9 +217,7 @@ def status():
 @click.option('--tail', default=100, help='Number of log lines to show')
 def logs(service, tail):
     """Show Docker container logs."""
-    platform, _ = detect_gpu_platform()
-    compose_file = _get_compose_file(platform)
-    manager = DockerManager(PROJECT_ROOT, compose_file=str(compose_file))
+    manager = DockerManager(PROJECT_ROOT, compose_file=str(COMPOSE_FILE))
     success, output = manager.logs(service=service, tail=tail)
 
     if success:
@@ -328,7 +247,9 @@ def run():
 @click.option('--num-prompts-start', default=1, help='Start of prompts range')
 @click.option('--experiment-name', required=True, help='Name for the experiment folder')
 @click.option('--max-model-len', default=None, type=int, help='Max model length')
-@click.option('--server-url', default="http://vllm-server:8000", help='vLLM server URL (internal container URL)')
+@click.option('--server-url', default="http://localhost:8000",
+              help='vLLM server URL. The Intel compose file uses network_mode: host, '
+                   'so localhost works from the client container.')
 @click.option('--generate-script', is_flag=True, help='Generate shell script instead of running')
 def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, output_len,
               num_prompts, num_prompts_start, experiment_name, max_model_len, server_url,
@@ -339,7 +260,6 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
     Make sure containers are running (python3 main.py docker start) and vLLM server
     is started inside the vllm-server container.
     """
-    # Input validation
     import re as _re
 
     if not (0.0 < gpu_memory_utilization <= 1.0):
@@ -354,9 +274,8 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
         console.print("[red]Error: --num-prompts-start cannot be greater than --num-prompts (start > end)[/red]")
         sys.exit(1)
 
-    manager = DockerManager(PROJECT_ROOT)
+    manager = DockerManager(PROJECT_ROOT, compose_file=str(COMPOSE_FILE))
 
-    # Check if containers are running
     if not manager.is_running("vllm-bench-client"):
         console.print("[red]Error: vllm-bench-client container is not running[/red]")
         console.print("\nPlease start the containers first:")
@@ -364,7 +283,6 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
         sys.exit(1)
 
     if generate_script:
-        # Generate shell script (still uses BenchmarkRunner for this)
         config = BenchmarkConfig(
             gpu_count=gpu_count,
             gpu_ids=gpu_ids,
@@ -387,10 +305,9 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
         console.print(f"[green]Generated script: {script_path}[/green]")
         return
 
-    # Display configuration
     console.print(Panel.fit(
         "[bold blue]vLLM Benchmark[/bold blue]",
-        border_style="blue"
+        border_style="blue",
     ))
 
     table = Table(title="Benchmark Configuration")
@@ -410,7 +327,6 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
 
     console.print(table)
 
-    # Set up BenchmarkRunner
     bench_config = BenchmarkConfig(
         gpu_count=gpu_count,
         gpu_ids=gpu_ids,
@@ -432,24 +348,21 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
     console.print("\n[bold]Running benchmark inside container...[/bold]")
     console.print(f"[dim]Output directory: {experiment_dir}[/dim]\n")
 
-    # Create experiment directory inside container
     manager.exec_benchmark(f"mkdir -p {experiment_dir}", stream_output=False)
 
-    # Collect and save experiment configuration
     console.print("[bold]Collecting system information...[/bold]")
 
-    gpu_info_cmd = (
-        "rocm-smi --showproductname --showmeminfo vram --json 2>/dev/null"
-        " || nvidia-smi --query-gpu=name,memory.total --format=csv 2>/dev/null"
-        " || echo '{}'"
-    )
+    gpu_info_cmd = "xpu-smi discovery -j 2>/dev/null || echo '{}'"
     _, gpu_info_raw = manager.exec_benchmark(gpu_info_cmd, stream_output=False)
 
     vllm_version_cmd = "pip show vllm 2>/dev/null | grep Version | cut -d' ' -f2 || echo 'unknown'"
     _, vllm_version = manager.exec_benchmark(vllm_version_cmd, stream_output=False)
 
-    rocm_version_cmd = "cat /opt/rocm/.info/version 2>/dev/null || echo 'N/A'"
-    _, rocm_version = manager.exec_benchmark(rocm_version_cmd, stream_output=False)
+    runtime_version_cmd = (
+        "python3 -c 'import intel_extension_for_pytorch as ipex; print(ipex.__version__)'"
+        " 2>/dev/null || echo 'N/A'"
+    )
+    _, runtime_version = manager.exec_benchmark(runtime_version_cmd, stream_output=False)
 
     exp_config = {
         "experiment_name": experiment_name,
@@ -469,8 +382,9 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
             "server_url": server_url,
         },
         "environment": {
+            "platform": "xpu",
             "vllm_version": vllm_version.strip(),
-            "rocm_version": rocm_version.strip(),
+            "runtime_version": runtime_version.strip(),
         },
     }
 
@@ -479,7 +393,6 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
     manager.exec_benchmark(save_config_cmd, stream_output=False)
     console.print(f"[green]Configuration saved to {experiment_dir}/config.json[/green]\n")
 
-    # Run benchmarks
     total = num_prompts - num_prompts_start + 1
     completed = 0
     failed = 0
@@ -496,7 +409,6 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
             console.print(f"[red]  num_prompts={np_val} failed[/red]")
             failed += 1
 
-    # Summary
     console.print()
     local_output_dir = PROJECT_ROOT / "output" / experiment_name
     console.print(Panel.fit(
@@ -505,12 +417,12 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
         f"Completed: [green]{total - failed}[/green]\n"
         f"Failed: [red]{failed}[/red]\n\n"
         f"Results: {local_output_dir}",
-        border_style="green" if failed == 0 else "yellow"
+        border_style="green" if failed == 0 else "yellow",
     ))
 
 
 # =============================================================================
-# WEB UI COMMAND
+# WEB UI
 # =============================================================================
 
 @cli.command()
@@ -527,7 +439,7 @@ def webui(output_dir, host, port, debug):
 
     console.print(Panel.fit(
         "[bold blue]vLLM Benchmark - Web UI[/bold blue]",
-        border_style="blue"
+        border_style="blue",
     ))
 
     console.print(f"Output directory: {output_dir}")
@@ -536,10 +448,6 @@ def webui(output_dir, host, port, debug):
 
     run_app(output_dir=output_dir, host=host, port=port, debug=debug)
 
-
-# =============================================================================
-# MAIN ENTRY POINT
-# =============================================================================
 
 if __name__ == '__main__':
     cli()
