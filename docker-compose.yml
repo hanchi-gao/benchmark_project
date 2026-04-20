@@ -1,13 +1,14 @@
 services:
-  # vLLM server container
   vllm-server:
-    image: ${VLLM_IMAGE:-vllm-rocm71:latest}
+    image: ${VLLM_IMAGE:-vllm/vllm-openai:latest}
     container_name: vllm-server
-    devices:
-      - /dev/kfd
-      - /dev/dri
-    group_add:
-      - video
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     ipc: host
     cap_add:
       - SYS_PTRACE
@@ -30,15 +31,16 @@ services:
     tty: true
     command: /bin/bash
 
-  # Benchmark client container
   vllm-bench-client:
-    image: ${VLLM_IMAGE:-vllm-rocm71:latest}
+    image: ${VLLM_IMAGE:-vllm/vllm-openai:latest}
     container_name: vllm-bench-client
-    devices:
-      - /dev/kfd
-      - /dev/dri
-    group_add:
-      - video
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     ipc: host
     cap_add:
       - SYS_PTRACE
