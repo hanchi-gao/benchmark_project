@@ -46,12 +46,7 @@ class BenchmarkRunner:
     def setup_environment(self) -> dict:
         """Set up environment variables for GPU selection."""
         env = os.environ.copy()
-        # AMD ROCm GPU selection
-        env["HIP_VISIBLE_DEVICES"] = self.config.gpu_ids
-        # Also set CUDA_VISIBLE_DEVICES for compatibility
         env["CUDA_VISIBLE_DEVICES"] = self.config.gpu_ids
-        # Intel oneAPI GPU selection
-        env["ONEAPI_DEVICE_SELECTOR"] = f"level_zero:{self.config.gpu_ids}"
         return env
 
     def get_max_model_len(self) -> int:
@@ -247,7 +242,7 @@ class BenchmarkRunner:
 set -e
 
 # GPU Configuration
-export HIP_VISIBLE_DEVICES="{self.config.gpu_ids}"
+export CUDA_VISIBLE_DEVICES="{self.config.gpu_ids}"
 
 # Results directory
 RESULTS_DIR="/root/output/{self.config.experiment_name}"
