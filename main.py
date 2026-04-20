@@ -18,29 +18,15 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from benchmarks.benchmark_runner import BenchmarkConfig, BenchmarkRunner  # noqa: E402
 from checks import (  # noqa: E402
     GpuPlatform,
-    check_amd_driver,
     check_docker,
-    check_intel,
     check_nvidia,
-    check_rocm,
     detect_gpu_platform,
 )
 from docker.manager import DockerManager  # noqa: E402
 
 console = Console()
 
-DEFAULT_IMAGE = "vllm-rocm71:latest"
-
-
-def _get_compose_file(platform: GpuPlatform) -> Path:
-    """Return the standalone compose file for the detected GPU platform."""
-    match platform:
-        case GpuPlatform.NVIDIA:
-            return PROJECT_ROOT / "docker-compose.nvidia.yml"
-        case GpuPlatform.INTEL:
-            return PROJECT_ROOT / "docker-compose.intel.yml"
-        case _:  # AMD or unknown -> default AMD
-            return PROJECT_ROOT / "docker-compose.yml"
+DEFAULT_IMAGE = "vllm/vllm-openai:latest"
 
 
 @click.group()
@@ -69,32 +55,7 @@ def check(verbose):
     platform, platform_msg = detect_gpu_platform()
     console.print(f"\n[bold]GPU Platform:[/bold] {platform_msg}")
 
-    if platform == GpuPlatform.AMD:
-        # AMD Driver Check
-        console.print("\n[bold]1. AMD Driver Check[/bold]")
-        driver_result = check_amd_driver()
-        for check_item in driver_result["checks"]:
-            status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
-            console.print(f"   {check_item['name']}: {status}")
-            if verbose or not check_item["passed"]:
-                console.print(f"      {check_item['message']}")
-        if not driver_result["success"]:
-            all_passed = False
-
-        # ROCm Check
-        console.print("\n[bold]2. ROCm Installation Check[/bold]")
-        rocm_result = check_rocm()
-        for check_item in rocm_result["checks"]:
-            status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
-            console.print(f"   {check_item['name']}: {status}")
-            if verbose or not check_item["passed"]:
-                console.print(f"      {check_item['message']}")
-        if rocm_result.get("gpu_count", 0) > 0:
-            console.print(f"   GPU Count: [cyan]{rocm_result['gpu_count']}[/cyan]")
-        if not rocm_result["success"]:
-            all_passed = False
-
-    elif platform == GpuPlatform.NVIDIA:
+    if platform == GpuPlatform.NVIDIA:
         console.print("\n[bold]1. NVIDIA GPU Check[/bold]")
         nvidia_result = check_nvidia()
         for check_item in nvidia_result["checks"]:
@@ -106,26 +67,12 @@ def check(verbose):
             console.print(f"   GPU Count: [cyan]{nvidia_result['gpu_count']}[/cyan]")
         if not nvidia_result["success"]:
             all_passed = False
-
-    elif platform == GpuPlatform.INTEL:
-        console.print("\n[bold]1. Intel GPU Check[/bold]")
-        intel_result = check_intel()
-        for check_item in intel_result["checks"]:
-            status = "[green]OK[/green]" if check_item["passed"] else "[red]FAIL[/red]"
-            console.print(f"   {check_item['name']}: {status}")
-            if verbose or not check_item["passed"]:
-                console.print(f"      {check_item['message']}")
-        if intel_result.get("gpu_count", 0) > 0:
-            console.print(f"   GPU Count: [cyan]{intel_result['gpu_count']}[/cyan]")
-        if not intel_result["success"]:
-            all_passed = False
-
     else:
-        console.print("\n[yellow]No GPU detected. Benchmark execution requires a GPU,[/yellow]")
+        console.print("\n[yellow]No NVIDIA GPU detected. Benchmark execution requires a CUDA GPU,[/yellow]")
         console.print("[yellow]but the Web UI can still be used to view existing results.[/yellow]")
 
     # Docker Check (always run)
-    step_num = 3 if platform == GpuPlatform.AMD else 2 if platform in (GpuPlatform.NVIDIA, GpuPlatform.INTEL) else 1
+    step_num = 2 if platform == GpuPlatform.NVIDIA else 1
     console.print(f"\n[bold]{step_num}. Docker Check[/bold]")
     docker_result = check_docker()
     for check_item in docker_result["checks"]:
@@ -176,7 +123,7 @@ def start(image):
         images = manager.list_available_images()
 
         if not images:
-            console.print("[red]No vLLM/ROCm Docker images found.[/red]")
+            console.print("[red]No vLLM Docker images found.[/red]")
             console.print("Pull an image first: [green]docker pull <image>[/green]")
             sys.exit(1)
 
@@ -202,17 +149,7 @@ def start(image):
 
     console.print(f"\n[bold]Starting Docker containers with image:[/bold] {image}")
 
-    # Auto-detect GPU platform and select standalone compose file
-    platform, _ = detect_gpu_platform()
-    compose_file = _get_compose_file(platform)
-    platform_label = {
-        GpuPlatform.NVIDIA: "NVIDIA",
-        GpuPlatform.INTEL: "Intel",
-        GpuPlatform.AMD: "AMD",
-    }.get(platform, "AMD")
-    console.print(f"[dim]Detected {platform_label} GPU - using {compose_file.name}[/dim]")
-
-    manager = DockerManager(PROJECT_ROOT, image=image, compose_file=str(compose_file))
+    manager = DockerManager(PROJECT_ROOT, image=image)
     success, message = manager.start()
 
     if success:
@@ -247,9 +184,7 @@ def stop(volumes):
     """Stop and remove Docker containers."""
     console.print("[bold]Stopping and removing Docker containers...[/bold]")
 
-    platform, _ = detect_gpu_platform()
-    compose_file = _get_compose_file(platform)
-    manager = DockerManager(PROJECT_ROOT, compose_file=str(compose_file))
+    manager = DockerManager(PROJECT_ROOT)
     success, message = manager.down(volumes=volumes)
 
     if success:
@@ -265,9 +200,7 @@ def reset():
     console.print("[bold yellow]Resetting Docker environment...[/bold yellow]")
     console.print("This will remove ALL vllm-related containers.\n")
 
-    platform, _ = detect_gpu_platform()
-    compose_file = _get_compose_file(platform)
-    manager = DockerManager(PROJECT_ROOT, compose_file=str(compose_file))
+    manager = DockerManager(PROJECT_ROOT)
     success, message = manager.reset()
 
     console.print(message)
@@ -280,9 +213,7 @@ def reset():
 @docker.command()
 def status():
     """Show Docker container status."""
-    platform, _ = detect_gpu_platform()
-    compose_file = _get_compose_file(platform)
-    manager = DockerManager(PROJECT_ROOT, compose_file=str(compose_file))
+    manager = DockerManager(PROJECT_ROOT)
     success, output = manager.status()
 
     if success:
@@ -296,9 +227,7 @@ def status():
 @click.option('--tail', default=100, help='Number of log lines to show')
 def logs(service, tail):
     """Show Docker container logs."""
-    platform, _ = detect_gpu_platform()
-    compose_file = _get_compose_file(platform)
-    manager = DockerManager(PROJECT_ROOT, compose_file=str(compose_file))
+    manager = DockerManager(PROJECT_ROOT)
     success, output = manager.logs(service=service, tail=tail)
 
     if success:
@@ -439,8 +368,7 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
     console.print("[bold]Collecting system information...[/bold]")
 
     gpu_info_cmd = (
-        "rocm-smi --showproductname --showmeminfo vram --json 2>/dev/null"
-        " || nvidia-smi --query-gpu=name,memory.total --format=csv 2>/dev/null"
+        "nvidia-smi --query-gpu=name,memory.total --format=csv 2>/dev/null"
         " || echo '{}'"
     )
     _, gpu_info_raw = manager.exec_benchmark(gpu_info_cmd, stream_output=False)
@@ -448,8 +376,12 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
     vllm_version_cmd = "pip show vllm 2>/dev/null | grep Version | cut -d' ' -f2 || echo 'unknown'"
     _, vllm_version = manager.exec_benchmark(vllm_version_cmd, stream_output=False)
 
-    rocm_version_cmd = "cat /opt/rocm/.info/version 2>/dev/null || echo 'N/A'"
-    _, rocm_version = manager.exec_benchmark(rocm_version_cmd, stream_output=False)
+    cuda_version_cmd = (
+        "nvcc --version 2>/dev/null | grep release"
+        " || nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null"
+        " || echo 'N/A'"
+    )
+    _, cuda_version = manager.exec_benchmark(cuda_version_cmd, stream_output=False)
 
     exp_config = {
         "experiment_name": experiment_name,
@@ -470,7 +402,7 @@ def benchmark(gpu_count, gpu_ids, model, gpu_memory_utilization, input_len, outp
         },
         "environment": {
             "vllm_version": vllm_version.strip(),
-            "rocm_version": rocm_version.strip(),
+            "cuda_version": cuda_version.strip(),
         },
     }
 

@@ -9,7 +9,7 @@ from typing import Optional, Tuple
 class DockerManager:
     """Manages Docker containers for vLLM benchmarking."""
 
-    DEFAULT_IMAGE = "vllm-rocm71:latest"
+    DEFAULT_IMAGE = "vllm/vllm-openai:latest"
 
     def __init__(self, project_dir: Optional[Path] = None, image: Optional[str] = None,
                  compose_file: Optional[str] = None):
@@ -18,7 +18,7 @@ class DockerManager:
 
         Args:
             project_dir: Project directory containing docker-compose files
-            image: Docker image to use (default: vllm-rocm71:latest)
+            image: Docker image to use (default: vllm/vllm-openai:latest)
             compose_file: Path to compose file (default: docker-compose.yml)
         """
         self.project_dir = project_dir or Path(__file__).parent.parent
@@ -218,7 +218,6 @@ class DockerManager:
             List of dicts with image info: name, size, created
         """
         try:
-            # Get images with vllm or rocm in the name
             result = subprocess.run(
                 [
                     "docker", "images",
@@ -239,8 +238,7 @@ class DockerManager:
                 parts = line.split('\t')
                 if len(parts) >= 3:
                     name = parts[0]
-                    # Filter for vllm or rocm related images
-                    if 'vllm' in name.lower() or 'rocm' in name.lower():
+                    if 'vllm' in name.lower():
                         images.append({
                             "name": name,
                             "size": parts[1],

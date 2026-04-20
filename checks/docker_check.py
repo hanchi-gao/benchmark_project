@@ -57,7 +57,7 @@ def check_docker_compose() -> Tuple[bool, str]:
     return False, "Docker Compose not found"
 
 
-def check_vllm_image(image_name: str = "vllm-rocm71:latest") -> Tuple[bool, Optional[str]]:
+def check_vllm_image(image_name: str = "vllm/vllm-openai:latest") -> Tuple[bool, Optional[str]]:
     """Check if vLLM Docker image is available."""
     try:
         result = subprocess.run(
@@ -105,7 +105,7 @@ def list_vllm_images() -> List[str]:
         return []
 
 
-def check_docker(image_name: str = "vllm-rocm71:latest") -> dict:
+def check_docker(image_name: str = "vllm/vllm-openai:latest") -> dict:
     """
     Run all Docker checks.
 
